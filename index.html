@@ -11,59 +11,46 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:#0D0F14;color:#E8EAF0;font-family:system-ui,-apple-system,sans-serif}
-button,input{font-family:inherit}
+button,input,select{font-family:inherit}
 input::placeholder{color:#6B7280}
 input[type=time]::-webkit-calendar-picker-indicator{filter:invert(1)}
+select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236B7280' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 14px center}
 @keyframes pulse{from{opacity:.1}to{opacity:.3}}
 @keyframes ringBell{0%,100%{transform:rotate(-15deg)}50%{transform:rotate(15deg)}}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .ring{display:inline-block;animation:ringBell .45s ease-in-out infinite}
 .shake{animation:shake .4s ease-in-out}
+.fadein{animation:fadeIn .3s ease}
 
-/* ── scanner overlay (always in DOM, shown/hidden) ── */
-#scanner-overlay{
-  display:none;
-  position:fixed;inset:0;z-index:999;
-  background:#000;
-  flex-direction:column;align-items:center;justify-content:center;
-}
+/* ── scanner overlay ── */
+#scanner-overlay{display:none;position:fixed;inset:0;z-index:999;background:#000;flex-direction:column;align-items:center;justify-content:center}
 #scanner-overlay.active{display:flex}
-#scanner-video{
-  width:100%;max-width:500px;
-  aspect-ratio:4/3;object-fit:cover;
-  display:block;background:#111;
-}
-#scanner-ui{
-  position:absolute;inset:0;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  pointer-events:none;
-}
-#scanner-frame{
-  width:60%;aspect-ratio:1;
-  border:2px solid #F5A623;border-radius:12px;
-}
-#scanner-hint{
-  margin-top:16px;
-  color:rgba(255,255,255,.85);font-size:14px;
-  background:rgba(0,0,0,.55);border-radius:8px;padding:6px 16px;
-}
-#scanner-close{
-  position:absolute;top:24px;left:24px;
-  background:rgba(0,0,0,.6);border:none;border-radius:10px;
-  padding:10px 18px;color:#fff;font-size:15px;cursor:pointer;
-  pointer-events:auto;
-}
-#scanner-status{
-  position:absolute;bottom:40px;left:50%;transform:translateX(-50%);
-  color:#E84855;font-size:15px;font-weight:600;
-  background:rgba(0,0,0,.7);border-radius:8px;padding:8px 18px;
-  display:none;white-space:nowrap;
-}
+#scanner-video{width:100%;max-width:500px;aspect-ratio:4/3;object-fit:cover;display:block;background:#111}
+#scanner-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+#scanner-frame{width:60%;aspect-ratio:1;border:2px solid #F5A623;border-radius:12px}
+#scanner-hint{margin-top:16px;color:rgba(255,255,255,.85);font-size:14px;background:rgba(0,0,0,.55);border-radius:8px;padding:6px 16px;text-align:center;max-width:80%}
+#scanner-close{position:absolute;top:24px;left:24px;background:rgba(0,0,0,.6);border:none;border-radius:10px;padding:10px 18px;color:#fff;font-size:15px;cursor:pointer;pointer-events:auto}
+
+/* ── object-detect overlay ── */
+#detect-overlay{display:none;position:fixed;inset:0;z-index:999;background:#000;flex-direction:column;align-items:center;justify-content:center}
+#detect-overlay.active{display:flex}
+#detect-video{width:100%;max-width:500px;aspect-ratio:4/3;object-fit:cover;display:block;background:#111}
+#detect-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+#detect-frame{width:70%;aspect-ratio:4/3;border:2px solid #2EC069;border-radius:12px}
+#detect-hint{margin-top:16px;color:rgba(255,255,255,.9);font-size:14px;background:rgba(0,0,0,.6);border-radius:8px;padding:8px 18px;text-align:center;max-width:85%;line-height:1.5}
+#detect-close{position:absolute;top:24px;left:24px;background:rgba(0,0,0,.6);border:none;border-radius:10px;padding:10px 18px;color:#fff;font-size:15px;cursor:pointer;pointer-events:auto}
+#detect-result{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);color:#2EC069;font-size:15px;font-weight:700;background:rgba(0,0,0,.75);border-radius:10px;padding:10px 20px;display:none;white-space:nowrap;pointer-events:none}
+
+/* ── ringtone chips ── */
+.rt-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.rt-chip{padding:8px 14px;border-radius:20px;border:1.5px solid #2A2F42;background:#1E2230;color:#6B7280;font-size:13px;cursor:pointer;transition:all .15s}
+.rt-chip.selected{border-color:#F5A623;color:#F5A623;background:#1E2230}
 </style>
 </head>
 <body>
 
-<!-- ── Scanner overlay (permanently in DOM) ───────────────────── -->
+<!-- ── Barcode scanner overlay ── -->
 <div id="scanner-overlay">
   <video id="scanner-video" autoplay playsinline muted></video>
   <div id="scanner-ui">
@@ -71,139 +58,299 @@ input[type=time]::-webkit-calendar-picker-indicator{filter:invert(1)}
     <div id="scanner-hint">כוון את המצלמה לברקוד</div>
   </div>
   <button id="scanner-close">✕ סגור</button>
-  <div id="scanner-status"></div>
 </div>
 
-<!-- ── App root ───────────────────────────────────────────────── -->
+<!-- ── Object detect overlay ── -->
+<div id="detect-overlay">
+  <video id="detect-video" autoplay playsinline muted></video>
+  <div id="detect-ui">
+    <div id="detect-frame"></div>
+    <div id="detect-hint" id="detect-hint">מזהה חפץ...</div>
+  </div>
+  <button id="detect-close">✕ סגור</button>
+  <div id="detect-result"></div>
+</div>
+
 <div id="root"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
 <script>
-// ── Palette ──────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// PALETTE & HELPERS
+// ══════════════════════════════════════════════════════════
 const C={bg:'#0D0F14',surface:'#161921',card:'#1E2230',border:'#2A2F42',
   amber:'#F5A623',amberDim:'#7A5310',red:'#E84855',green:'#2EC069',
   text:'#E8EAF0',muted:'#6B7280',dimmer:'#3A3F52'};
 const pad=n=>String(n).padStart(2,'0');
 const $=id=>document.getElementById(id);
+function mkEl(tag,props={},...children){
+  const e=document.createElement(tag);
+  Object.entries(props).forEach(([k,v])=>{
+    if(k==='style'&&typeof v==='object')Object.assign(e.style,v);
+    else if(k==='className')e.className=v;
+    else if(k.startsWith('on'))e.addEventListener(k.slice(2).toLowerCase(),v);
+    else e.setAttribute(k,v);
+  });
+  children.flat().forEach(c=>c!=null&&e.append(typeof c==='string'?document.createTextNode(c):c));
+  return e;
+}
+const div=(p={},...c)=>mkEl('div',p,...c);
+const lbl=t=>mkEl('label',{style:{display:'block',fontSize:'13px',color:C.muted,marginBottom:'6px',marginTop:'16px',fontWeight:500}},t);
+const inp=(type,val,dir,ph='')=>{const i=mkEl('input',{type,dir,placeholder:ph,style:{width:'100%',background:C.card,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'12px 14px',fontSize:'16px',outline:'none',color:C.text}});i.value=val||'';return i;};
 
-// ── State ────────────────────────────────────────────────────────────────────
-let alarms=[];
-try{alarms=JSON.parse(localStorage.getItem('alarms')||'[]')}catch{}
-let activeAlarm=null, screen='home', dismissMode=null, showAdd=false;
-let newBarcode='', newPassword2='', newLabel2='', newTime2='';
-let lastTriggeredKey='';
+// ══════════════════════════════════════════════════════════
+// RINGTONES  (all via Web Audio — no files needed)
+// ══════════════════════════════════════════════════════════
+const RINGTONES = [
+  {
+    id:'classic', name:'📢 קלאסי', desc:'ביפים חדים',
+    play(ctx, t, vol){
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type='square';
+      o.frequency.setValueAtTime(880,t);
+      o.frequency.exponentialRampToValueAtTime(440,t+.1);
+      g.gain.setValueAtTime(vol*.3,t);
+      g.gain.exponentialRampToValueAtTime(.001,t+.4);
+      o.start(t);o.stop(t+.4);
+    }
+  },
+  {
+    id:'gentle', name:'🌅 מתגבר', desc:'מתחיל רגוע ומתחזק',
+    // handled specially — volume ramps up over time
+    play(ctx, t, vol){
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type='sine';
+      o.frequency.setValueAtTime(440,t);
+      o.frequency.linearRampToValueAtTime(528,t+.6);
+      g.gain.setValueAtTime(vol*.04,t);
+      g.gain.linearRampToValueAtTime(vol*.25,t+.5);
+      g.gain.exponentialRampToValueAtTime(.001,t+.8);
+      o.start(t);o.stop(t+.8);
+    }
+  },
+  {
+    id:'digital', name:'📱 דיגיטלי', desc:'ריצוד מודרני',
+    play(ctx, t, vol){
+      [0,.1,.2].forEach((dt,i)=>{
+        const o=ctx.createOscillator(),g=ctx.createGain();
+        o.connect(g);g.connect(ctx.destination);
+        o.type='sawtooth';
+        o.frequency.setValueAtTime(660+i*110,t+dt);
+        g.gain.setValueAtTime(vol*.2,t+dt);
+        g.gain.exponentialRampToValueAtTime(.001,t+dt+.08);
+        o.start(t+dt);o.stop(t+dt+.1);
+      });
+    }
+  },
+  {
+    id:'bell', name:'🔔 פעמון', desc:'צלצול רך',
+    play(ctx, t, vol){
+      [1,2,4,6].forEach((harmonic,i)=>{
+        const o=ctx.createOscillator(),g=ctx.createGain();
+        o.connect(g);g.connect(ctx.destination);
+        o.type='sine';
+        o.frequency.value=523.25*harmonic;
+        g.gain.setValueAtTime(vol*.15/harmonic,t);
+        g.gain.exponentialRampToValueAtTime(.001,t+1.5);
+        o.start(t);o.stop(t+1.6);
+      });
+    }
+  },
+  {
+    id:'siren', name:'🚨 צופר', desc:'דחוף וחזק',
+    play(ctx, t, vol){
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type='sawtooth';
+      o.frequency.setValueAtTime(400,t);
+      o.frequency.linearRampToValueAtTime(800,t+.3);
+      o.frequency.linearRampToValueAtTime(400,t+.6);
+      g.gain.setValueAtTime(vol*.25,t);
+      g.gain.exponentialRampToValueAtTime(.001,t+.65);
+      o.start(t);o.stop(t+.7);
+    }
+  }
+];
 
-// ── Persist ──────────────────────────────────────────────────────────────────
-const save=()=>{try{localStorage.setItem('alarms',JSON.stringify(alarms))}catch{}};
+// ── Gentle ringtone ramps volume up over ~2 minutes ──────
+let gentleVolume=0.05;  // starts very quiet
+let beepCount=0;
 
-// ── Sound ────────────────────────────────────────────────────────────────────
 let audioCtx=null, beepIv=null;
-function beep(){
+function getCtx(){
+  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  return audioCtx;
+}
+
+function playBeep(ringtoneId){
   try{
-    if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-    if(audioCtx.state==='suspended')audioCtx.resume();
-    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-    o.connect(g);g.connect(audioCtx.destination);
-    o.type='square';
-    o.frequency.setValueAtTime(880,audioCtx.currentTime);
-    o.frequency.exponentialRampToValueAtTime(440,audioCtx.currentTime+.1);
-    g.gain.setValueAtTime(.3,audioCtx.currentTime);
-    g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.4);
-    o.start();o.stop(audioCtx.currentTime+.4);
+    const ctx=getCtx();
+    const rt=RINGTONES.find(r=>r.id===ringtoneId)||RINGTONES[0];
+    const vol = ringtoneId==='gentle' ? gentleVolume : 1;
+    rt.play(ctx, ctx.currentTime, vol);
   }catch(e){}
 }
-const startSound=()=>{beep();clearInterval(beepIv);beepIv=setInterval(beep,800)};
-const stopSound=()=>clearInterval(beepIv);
 
-// ── Vibration ─────────────────────────────────────────────────────────────────
+function startSound(ringtoneId){
+  beepCount=0; gentleVolume=0.05;
+  const isGentle = ringtoneId==='gentle';
+  const interval = isGentle ? 900 : 800;
+  playBeep(ringtoneId);
+  clearInterval(beepIv);
+  beepIv=setInterval(()=>{
+    beepCount++;
+    if(isGentle){
+      // ramp volume: 0.05 → 1.0 over ~120 beeps (~108 sec)
+      gentleVolume=Math.min(1, 0.05 + beepCount/120);
+    }
+    playBeep(ringtoneId);
+  },interval);
+}
+const stopSound=()=>{clearInterval(beepIv);beepCount=0;gentleVolume=0.05;};
+
+// ── Vibration ──────────────────────────────────────────────
 let vibIv=null;
-function startVib(){
-  if(!('vibrate'in navigator))return;
-  navigator.vibrate([300,100,300]);
-  vibIv=setInterval(()=>navigator.vibrate([300,100,300]),700);
-}
-function stopVib(){clearInterval(vibIv);if('vibrate'in navigator)navigator.vibrate(0)}
+function startVib(){if(!('vibrate'in navigator))return;navigator.vibrate([300,100,300]);vibIv=setInterval(()=>navigator.vibrate([300,100,300]),700);}
+function stopVib(){clearInterval(vibIv);if('vibrate'in navigator)navigator.vibrate(0);}
 
-// ══════════════════════════════════════════════════════════════════════════════
-// SCANNER — lives in its own persistent overlay, never destroyed by render()
-// ══════════════════════════════════════════════════════════════════════════════
-let scanStream=null, scanRaf=null, scanCallback=null;
-
-async function openScanner(callback){
+// ══════════════════════════════════════════════════════════
+// BARCODE SCANNER
+// ══════════════════════════════════════════════════════════
+let scanStream=null,scanRaf=null,scanCallback=null;
+async function openScanner(callback,hint){
   scanCallback=callback;
-  $('scanner-status').style.display='none';
+  $('scanner-hint').textContent=hint||'כוון את המצלמה לברקוד';
   $('scanner-overlay').classList.add('active');
-
   const video=$('scanner-video');
-
-  // If stream already running just restart raf
-  if(scanStream){
-    startScanLoop(video);
-    return;
-  }
-
+  if(scanStream){startScanLoop(video);return;}
   try{
-    const stream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}
-    });
-    scanStream=stream;
-    video.srcObject=stream;
-    // Wait for metadata THEN play — fixes black screen on iOS/Android
-    video.onloadedmetadata=async()=>{
-      try{await video.play()}catch(e){console.warn('play err',e)}
-      startScanLoop(video);
-    };
-  }catch(err){
-    closeScanner();
-    alert('לא ניתן לגשת למצלמה.\n'+err.message+'\n\nודא שאישרת הרשאת מצלמה לדפדפן בהגדרות.');
-  }
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+    scanStream=stream;video.srcObject=stream;
+    video.onloadedmetadata=async()=>{try{await video.play()}catch(e){}startScanLoop(video);};
+  }catch(err){closeScanner();alert('לא ניתן לגשת למצלמה.\n'+err.message);}
 }
-
 function startScanLoop(video){
   cancelAnimationFrame(scanRaf);
-  const canvas=document.createElement('canvas');
-  const ctx=canvas.getContext('2d');
-  let bdet=null;
-  if('BarcodeDetector'in window){try{bdet=new BarcodeDetector()}catch(_){}}
-
+  const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+  let bdet=null;if('BarcodeDetector'in window){try{bdet=new BarcodeDetector()}catch(_){}}
   async function tick(){
     if(!scanStream)return;
-    if(video.readyState>=video.HAVE_ENOUGH_DATA && video.videoWidth>0){
+    if(video.readyState>=video.HAVE_ENOUGH_DATA&&video.videoWidth>0){
       canvas.width=video.videoWidth;canvas.height=video.videoHeight;
       ctx.drawImage(video,0,0);
       let result=null;
-      if(bdet){
-        try{const r=await bdet.detect(video);if(r.length)result=r[0].rawValue}catch(_){}
-      }
-      if(!result&&window.jsQR){
-        const d=ctx.getImageData(0,0,canvas.width,canvas.height);
-        const qr=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});
-        if(qr)result=qr.data;
-      }
-      if(result){
-        const cb=scanCallback;
-        closeScanner();
-        cb(result);
-        return;
-      }
+      if(bdet){try{const r=await bdet.detect(video);if(r.length)result=r[0].rawValue}catch(_){}}
+      if(!result&&window.jsQR){const d=ctx.getImageData(0,0,canvas.width,canvas.height);const qr=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});if(qr)result=qr.data;}
+      if(result){const cb=scanCallback;closeScanner();cb(result);return;}
     }
     scanRaf=requestAnimationFrame(tick);
   }
   scanRaf=requestAnimationFrame(tick);
 }
-
 function closeScanner(){
   cancelAnimationFrame(scanRaf);scanRaf=null;
   if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;}
   scanCallback=null;
   $('scanner-overlay').classList.remove('active');
-  const video=$('scanner-video');
-  video.srcObject=null;
+  $('scanner-video').srcObject=null;
+}
+$('scanner-close').onclick=()=>closeScanner();
+
+// ══════════════════════════════════════════════════════════
+// OBJECT DETECTION  (via Claude Vision API)
+// ══════════════════════════════════════════════════════════
+let detectStream=null,detectCallback=null,detectTarget=null;
+let detectCapturing=false;
+
+async function openObjectDetect(targetLabel, callback){
+  // targetLabel = e.g. "כוס קפה"
+  detectTarget=targetLabel;
+  detectCallback=callback;
+  $('detect-hint').textContent=`מחפש: ${targetLabel}\nכוון את המצלמה לחפץ`;
+  $('detect-result').style.display='none';
+  $('detect-overlay').classList.add('active');
+  detectCapturing=false;
+
+  const video=$('detect-video');
+  if(detectStream){video.srcObject=detectStream;try{await video.play()}catch(e){}startDetectLoop(video);return;}
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+    detectStream=stream;video.srcObject=stream;
+    video.onloadedmetadata=async()=>{try{await video.play()}catch(e){}startDetectLoop(video);};
+  }catch(err){closeDetect();alert('לא ניתן לגשת למצלמה.\n'+err.message);}
 }
 
-$('scanner-close').onclick=()=>{closeScanner();};
+function startDetectLoop(video){
+  // Capture a frame every 2.5 seconds and send to Claude
+  if(detectCapturing)return;
+  detectCapturing=true;
+  const canvas=document.createElement('canvas');
 
-// ── Alarm trigger ─────────────────────────────────────────────────────────────
+  async function captureAndAnalyze(){
+    if(!detectStream||!$('detect-overlay').classList.contains('active'))return;
+    if(video.readyState>=video.HAVE_ENOUGH_DATA&&video.videoWidth>0){
+      canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+      const ctx=canvas.getContext('2d');ctx.drawImage(video,0,0);
+      const base64=canvas.toDataURL('image/jpeg',.7).split(',')[1];
+
+      try{
+        const res=await fetch('https://api.anthropic.com/v1/messages',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            model:'claude-sonnet-4-6',
+            max_tokens:60,
+            messages:[{role:'user',content:[
+              {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
+              {type:'text',text:`Does this image contain a "${detectTarget}"? Answer only YES or NO.`}
+            ]}]
+          })
+        });
+        const data=await res.json();
+        const answer=(data?.content?.[0]?.text||'').trim().toUpperCase();
+        if(answer.startsWith('YES')){
+          const rd=$('detect-result');
+          rd.textContent='✅ זוהה! '+detectTarget;
+          rd.style.display='block';
+          setTimeout(()=>{
+            const cb=detectCallback;
+            closeDetect();
+            cb(detectTarget);
+          },700);
+          return;
+        }
+      }catch(e){console.warn('vision err',e);}
+    }
+    if($('detect-overlay').classList.contains('active')){
+      setTimeout(captureAndAnalyze,2500);
+    }
+  }
+  setTimeout(captureAndAnalyze,1000);
+}
+
+function closeDetect(){
+  detectCapturing=false;
+  if(detectStream){detectStream.getTracks().forEach(t=>t.stop());detectStream=null;}
+  detectCallback=null;detectTarget=null;
+  $('detect-overlay').classList.remove('active');
+  $('detect-video').srcObject=null;
+}
+$('detect-close').onclick=()=>closeDetect();
+
+// ══════════════════════════════════════════════════════════
+// APP STATE
+// ══════════════════════════════════════════════════════════
+let alarms=[];
+try{alarms=JSON.parse(localStorage.getItem('alarms')||'[]')}catch{}
+let activeAlarm=null,screen='home',dismissMode=null,showAdd=false;
+let newBarcode='',newObjectLabel='';
+let lastTriggeredKey='';
+const save=()=>{try{localStorage.setItem('alarms',JSON.stringify(alarms))}catch{}};
+
+// ── Alarm trigger ──────────────────────────────────────────
 function checkAlarms(){
   if(screen!=='home')return;
   const now=new Date();
@@ -215,37 +362,25 @@ function checkAlarms(){
 }
 function triggerAlarm(a){
   activeAlarm=a;screen='dismiss';dismissMode=null;
-  startSound();startVib();render();
+  startSound(a.ringtone||'classic');startVib();render();
 }
 function dismissAlarm(){
-  stopSound();stopVib();closeScanner();
+  stopSound();stopVib();closeScanner();closeDetect();
   alarms=alarms.map(a=>a.id===activeAlarm.id?{...a,enabled:false}:a);
   save();activeAlarm=null;screen='home';dismissMode=null;render();
 }
+function shake(){const el=$('dismiss-content');if(!el)return;el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake');}
 
-// ── Shake ─────────────────────────────────────────────────────────────────────
-function shake(){
-  const el=$('dismiss-content');if(!el)return;
-  el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake');
-}
+// ══════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════
+function render(){$('root').innerHTML='';$('root').append(screen==='dismiss'?buildDismiss():buildHome());}
 
-// ── Main render ───────────────────────────────────────────────────────────────
-function render(){
-  $('root').innerHTML='';
-  $('root').append(screen==='dismiss'?buildDismiss():buildHome());
-}
-
-// ── DISMISS ───────────────────────────────────────────────────────────────────
+// ── DISMISS SCREEN ─────────────────────────────────────────
 function buildDismiss(){
-  const wrap=div({style:{position:'fixed',inset:0,background:C.bg,display:'flex',
-    flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden',direction:'rtl'}});
-  wrap.append(div({style:{position:'absolute',inset:0,
-    background:`radial-gradient(ellipse at 50% 30%,${C.amber} 0%,transparent 70%)`,
-    animation:'pulse .8s ease-in-out infinite alternate',pointerEvents:'none'}}));
-
-  const content=div({id:'dismiss-content',style:{position:'relative',display:'flex',
-    flexDirection:'column',alignItems:'center',gap:'12px',padding:'0 24px',width:'100%',maxWidth:'380px'}});
-
+  const wrap=div({style:{position:'fixed',inset:0,background:C.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden',direction:'rtl'}});
+  wrap.append(div({style:{position:'absolute',inset:0,background:`radial-gradient(ellipse at 50% 30%,${C.amber} 0%,transparent 70%)`,animation:'pulse .8s ease-in-out infinite alternate',pointerEvents:'none'}}));
+  const content=div({id:'dismiss-content',style:{position:'relative',display:'flex',flexDirection:'column',alignItems:'center',gap:'12px',padding:'0 24px',width:'100%',maxWidth:'380px'}});
   content.append(
     mkEl('div',{className:'ring',style:{fontSize:'64px'}},'⏰'),
     mkEl('div',{style:{fontSize:'64px',fontWeight:200,color:C.text,letterSpacing:'-3px',fontVariantNumeric:'tabular-nums'}},activeAlarm.time),
@@ -254,116 +389,98 @@ function buildDismiss(){
   );
 
   if(dismissMode===null){
-    const btns=div({style:{display:'flex',gap:'12px',width:'100%'}});
+    const btns=div({style:{display:'flex',gap:'10px',width:'100%',flexWrap:'wrap',justifyContent:'center'}});
     if(activeAlarm.barcode){
-      btns.append(mkBtn('📷\nסרוק ברקוד',()=>{
+      btns.append(dismissBtn('📷','סרוק ברקוד',()=>{
         dismissMode='scan';render();
         openScanner(val=>{
-          if(val===activeAlarm.barcode){dismissAlarm();}
-          else{
-            dismissMode='scan-wrong';render();
-            // show scanner again after showing error
-          }
-        });
+          if(val===activeAlarm.barcode)dismissAlarm();
+          else{dismissMode='scan-wrong';render();}
+        },'כוון את המצלמה לברקוד שהגדרת');
+      }));
+    }
+    if(activeAlarm.objectLabel){
+      btns.append(dismissBtn('🔍','זהה חפץ',()=>{
+        dismissMode='object';render();
+        openObjectDetect(activeAlarm.objectLabel,()=>dismissAlarm());
       }));
     }
     if(activeAlarm.password){
-      btns.append(mkBtn('🔑\nהזן סיסמה',()=>{dismissMode='password';render();setTimeout(()=>$('pass-inp')?.focus(),80);}));
+      btns.append(dismissBtn('🔑','הזן סיסמה',()=>{dismissMode='password';render();setTimeout(()=>$('pass-inp')?.focus(),80);}));
     }
     content.append(btns);
   }
 
   if(dismissMode==='scan-wrong'){
-    // Wrong barcode state — show error + retry
-    const errDiv=div({style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'14px',width:'100%'}});
-    errDiv.append(
+    content.append(div({style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'14px',width:'100%'},className:'fadein'},
       mkEl('div',{style:{fontSize:'48px'}},'❌'),
       mkEl('div',{style:{color:C.red,fontSize:'17px',fontWeight:700}},'ברקוד לא נכון!'),
-      mkEl('button',{
-        style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',
-          padding:'14px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'},
-        onclick:()=>{
-          dismissMode='scan';render();
-          openScanner(val=>{
-            if(val===activeAlarm.barcode)dismissAlarm();
-            else{dismissMode='scan-wrong';render();shake();}
-          });
-        }
+      mkEl('button',{style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'14px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'},
+        onclick:()=>{dismissMode='scan';render();openScanner(val=>{if(val===activeAlarm.barcode)dismissAlarm();else{dismissMode='scan-wrong';render();shake();}});}
       },'נסה שוב'),
-      mkEl('button',{
-        style:{background:'none',border:'none',color:C.muted,fontSize:'14px',cursor:'pointer'},
-        onclick:()=>{dismissMode=null;render();}
-      },'← חזור לתפריט')
-    );
-    content.append(errDiv);
+      mkEl('button',{style:{background:'none',border:'none',color:C.muted,fontSize:'14px',cursor:'pointer'},onclick:()=>{dismissMode=null;render();}},'← חזור')
+    ));
+  }
+
+  if(dismissMode==='object'){
+    content.append(div({style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'12px',width:'100%'},className:'fadein'},
+      mkEl('div',{style:{fontSize:'36px'}},'🔍'),
+      mkEl('div',{style:{color:C.text,fontSize:'16px',fontWeight:600,textAlign:'center'}},'המצלמה פועלת ברקע'),
+      mkEl('div',{style:{color:C.muted,fontSize:'14px',textAlign:'center'}},`כוון אל: ${activeAlarm.objectLabel}`),
+      mkEl('button',{style:{background:'none',border:'none',color:C.muted,fontSize:'14px',cursor:'pointer',marginTop:'8px'},
+        onclick:()=>{closeDetect();dismissMode=null;render();}},'← חזור')
+    ));
   }
 
   if(dismissMode==='password'){
-    const pw=div({style:{width:'100%',display:'flex',flexDirection:'column',gap:'10px',alignItems:'center'}});
-    const inp=mkEl('input',{id:'pass-inp',type:'password',placeholder:'הזן סיסמה...',dir:'ltr',
-      style:{width:'100%',background:C.card,border:`1.5px solid ${C.border}`,borderRadius:'14px',
-        padding:'14px 16px',fontSize:'22px',textAlign:'center',letterSpacing:'6px',outline:'none',color:C.text}});
+    const pw=div({style:{width:'100%',display:'flex',flexDirection:'column',gap:'10px',alignItems:'center'},className:'fadein'});
+    const pinp=mkEl('input',{id:'pass-inp',type:'password',placeholder:'הזן סיסמה...',dir:'ltr',
+      style:{width:'100%',background:C.card,border:`1.5px solid ${C.border}`,borderRadius:'14px',padding:'14px 16px',fontSize:'22px',textAlign:'center',letterSpacing:'6px',outline:'none',color:C.text}});
     const err=mkEl('div',{id:'pass-err',style:{color:C.red,fontSize:'14px',fontWeight:600,display:'none'}},'סיסמה שגויה!');
     const tryPw=()=>{
-      if(inp.value===activeAlarm.password){dismissAlarm();}
-      else{err.style.display='block';inp.value='';shake();setTimeout(()=>err.style.display='none',1500);}
+      if(pinp.value===activeAlarm.password)dismissAlarm();
+      else{err.style.display='block';pinp.value='';shake();setTimeout(()=>err.style.display='none',1500);}
     };
-    inp.addEventListener('keydown',e=>e.key==='Enter'&&tryPw());
-    pw.append(inp,err,
-      mkEl('button',{style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',
-        padding:'14px 40px',fontSize:'17px',fontWeight:700,cursor:'pointer'},onclick:tryPw},'אשר'),
-      mkEl('button',{style:{background:'none',border:'none',color:C.muted,fontSize:'14px',cursor:'pointer'},
-        onclick:()=>{dismissMode=null;render();}},'← חזור')
+    pinp.addEventListener('keydown',e=>e.key==='Enter'&&tryPw());
+    pw.append(pinp,err,
+      mkEl('button',{style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'14px 40px',fontSize:'17px',fontWeight:700,cursor:'pointer'},onclick:tryPw},'אשר'),
+      mkEl('button',{style:{background:'none',border:'none',color:C.muted,fontSize:'14px',cursor:'pointer'},onclick:()=>{dismissMode=null;render();}},'← חזור')
     );
     content.append(pw);
   }
 
-  wrap.append(content);
-  return wrap;
+  wrap.append(content);return wrap;
 }
 
-function mkBtn(label,fn){
-  const [icon,...rest]=label.split('\n');
-  const b=mkEl('button',{
-    style:{flex:1,background:C.card,border:`1.5px solid ${C.amber}`,borderRadius:'16px',
-      padding:'18px 12px',color:C.amber,fontSize:'15px',fontWeight:700,cursor:'pointer',
+function dismissBtn(icon,label,fn){
+  return mkEl('button',{
+    style:{flex:'1',minWidth:'100px',maxWidth:'140px',background:C.card,border:`1.5px solid ${C.amber}`,borderRadius:'16px',
+      padding:'16px 10px',color:C.amber,fontSize:'14px',fontWeight:700,cursor:'pointer',
       display:'flex',flexDirection:'column',alignItems:'center',gap:'8px'},
     onclick:fn
-  },mkEl('span',{style:{fontSize:'28px'}},icon),rest.join(''));
-  return b;
+  },mkEl('span',{style:{fontSize:'26px'}},icon),label);
 }
 
-// ── HOME ──────────────────────────────────────────────────────────────────────
+// ── HOME SCREEN ────────────────────────────────────────────
 function buildHome(){
   const now=new Date();
-  const ts=pad(now.getHours())+':'+pad(now.getMinutes());
-  const ss=pad(now.getSeconds());
+  const ts=pad(now.getHours())+':'+pad(now.getMinutes()),ss=pad(now.getSeconds());
   const ds=now.toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'});
+  const wrap=div({style:{minHeight:'100vh',background:C.bg,display:'flex',flexDirection:'column',maxWidth:'430px',margin:'0 auto',paddingBottom:'40px',direction:'rtl'}});
 
-  const wrap=div({style:{minHeight:'100vh',background:C.bg,display:'flex',flexDirection:'column',
-    maxWidth:'430px',margin:'0 auto',paddingBottom:'40px',direction:'rtl'}});
-
-  // Clock
-  const clockWrap=div({style:{textAlign:'center',padding:'48px 24px 32px',
-    background:`linear-gradient(180deg,${C.surface} 0%,${C.bg} 100%)`,borderBottom:`1px solid ${C.border}`}});
-  const timeEl=mkEl('div',{id:'clock-time',style:{fontSize:'72px',fontWeight:200,letterSpacing:'-4px',
-    lineHeight:1,fontVariantNumeric:'tabular-nums'}});
+  const clockWrap=div({style:{textAlign:'center',padding:'48px 24px 32px',background:`linear-gradient(180deg,${C.surface} 0%,${C.bg} 100%)`,borderBottom:`1px solid ${C.border}`}});
+  const timeEl=mkEl('div',{id:'clock-time',style:{fontSize:'72px',fontWeight:200,letterSpacing:'-4px',lineHeight:1,fontVariantNumeric:'tabular-nums'}});
   timeEl.append(document.createTextNode(ts));
   timeEl.append(mkEl('span',{id:'clock-sec',style:{fontSize:'28px',fontWeight:400,color:C.amber,marginRight:'4px',letterSpacing:0}},ss));
   clockWrap.append(timeEl,mkEl('div',{style:{marginTop:'8px',fontSize:'15px',color:C.muted}},ds));
   wrap.append(clockWrap);
 
-  // List
   const sec=div({style:{padding:'24px 16px 0'}});
   const hdr=div({style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}});
   hdr.append(
     mkEl('span',{style:{fontSize:'18px',fontWeight:600}},'שעוני מעורר'),
-    mkEl('button',{
-      style:{background:C.amber,color:'#000',border:'none',borderRadius:'20px',
-        padding:'8px 18px',fontSize:'14px',fontWeight:700,cursor:'pointer'},
-      onclick:()=>{showAdd=true;newBarcode='';newPassword2='';newLabel2='';
-        newTime2=pad(new Date().getHours())+':'+pad(new Date().getMinutes());render();}
-    },'+ הוסף')
+    mkEl('button',{style:{background:C.amber,color:'#000',border:'none',borderRadius:'20px',padding:'8px 18px',fontSize:'14px',fontWeight:700,cursor:'pointer'},
+      onclick:()=>{showAdd=true;newBarcode='';newObjectLabel='';render();}},'+ הוסף')
   );
   sec.append(hdr);
 
@@ -376,117 +493,147 @@ function buildHome(){
   }
 
   alarms.forEach(a=>{
-    const card=div({style:{background:C.card,borderRadius:'16px',padding:'16px 20px',marginBottom:'12px',
-      display:'flex',justifyContent:'space-between',alignItems:'center',
-      border:`1px solid ${C.border}`,opacity:a.enabled?1:.5}});
+    const rt=RINGTONES.find(r=>r.id===a.ringtone)||RINGTONES[0];
+    const card=div({style:{background:C.card,borderRadius:'16px',padding:'16px 20px',marginBottom:'12px',display:'flex',justifyContent:'space-between',alignItems:'center',border:`1px solid ${C.border}`,opacity:a.enabled?1:.5}});
     const left=div({style:{flex:1}});
-    const badges=div({style:{display:'flex',gap:'6px',marginTop:'4px',flexWrap:'wrap'}});
-    if(a.barcode)badges.append(badge('📷 ברקוד'));
-    if(a.password)badges.append(badge('🔑 סיסמה'));
+    const bdg=div({style:{display:'flex',gap:'6px',marginTop:'4px',flexWrap:'wrap'}});
+    if(a.barcode)bdg.append(badge('📷 ברקוד'));
+    if(a.objectLabel)bdg.append(badge('🔍 '+a.objectLabel));
+    if(a.password)bdg.append(badge('🔑 סיסמה'));
+    bdg.append(badge(rt.name.split(' ')[0]+' '+rt.name.split(' ').slice(1).join(' ')));
     left.append(
       mkEl('div',{style:{fontSize:'36px',fontWeight:300,letterSpacing:'-1px',fontVariantNumeric:'tabular-nums'}},a.time),
-      mkEl('div',{style:{fontSize:'13px',color:C.muted,marginTop:'4px'}},a.label),badges
+      mkEl('div',{style:{fontSize:'13px',color:C.muted,marginTop:'4px'}},a.label),bdg
     );
     const right=div({style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'10px'}});
-    const tog=mkEl('button',{
-      style:{width:'44px',height:'24px',borderRadius:'12px',border:'none',cursor:'pointer',
-        background:a.enabled?C.amber:C.dimmer,transition:'background .2s'},
-      onclick:()=>{alarms=alarms.map(x=>x.id===a.id?{...x,enabled:!x.enabled}:x);save();render();}
-    });
-    const del=mkEl('button',{
-      style:{background:'none',border:'none',fontSize:'16px',cursor:'pointer',opacity:.5,padding:0},
-      onclick:()=>{alarms=alarms.filter(x=>x.id!==a.id);save();render();}
-    },'🗑');
-    right.append(tog,del);
-    card.append(left,right);
-    sec.append(card);
+    right.append(
+      mkEl('button',{style:{width:'44px',height:'24px',borderRadius:'12px',border:'none',cursor:'pointer',background:a.enabled?C.amber:C.dimmer,transition:'background .2s'},
+        onclick:()=>{alarms=alarms.map(x=>x.id===a.id?{...x,enabled:!x.enabled}:x);save();render();}}),
+      mkEl('button',{style:{background:'none',border:'none',fontSize:'16px',cursor:'pointer',opacity:.5,padding:0},
+        onclick:()=>{alarms=alarms.filter(x=>x.id!==a.id);save();render();}},'🗑')
+    );
+    card.append(left,right);sec.append(card);
   });
   wrap.append(sec);
-
-  // Add modal
   if(showAdd)wrap.append(buildAddModal());
   return wrap;
 }
 
-function badge(txt){
-  return mkEl('span',{style:{fontSize:'11px',background:C.surface,border:`1px solid ${C.border}`,
-    borderRadius:'8px',padding:'2px 8px',color:C.muted}},txt);
-}
+function badge(txt){return mkEl('span',{style:{fontSize:'11px',background:C.surface,border:`1px solid ${C.border}`,borderRadius:'8px',padding:'2px 8px',color:C.muted}},txt);}
 
-// ── ADD MODAL ─────────────────────────────────────────────────────────────────
+// ── ADD MODAL ──────────────────────────────────────────────
 function buildAddModal(){
   let localBarcode=newBarcode;
-  let scannerOpen=false;
+  let localObject=newObjectLabel;
+  let localRingtone='classic';
 
-  const overlay=div({style:{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',
-    display:'flex',alignItems:'flex-end',zIndex:200},
-    onclick:()=>{showAdd=false;newBarcode='';closeScanner();render();}});
+  const overlay=div({style:{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',display:'flex',alignItems:'flex-end',zIndex:200},
+    onclick:()=>{showAdd=false;newBarcode='';newObjectLabel='';closeScanner();closeDetect();render();}});
 
-  const modal=div({style:{background:C.surface,borderRadius:'24px 24px 0 0',
-    padding:'28px 20px 48px',width:'100%',maxHeight:'90vh',overflowY:'auto',direction:'rtl'},
+  const modal=div({style:{background:C.surface,borderRadius:'24px 24px 0 0',padding:'28px 20px 48px',width:'100%',maxHeight:'92vh',overflowY:'auto',direction:'rtl'},
     onclick:e=>e.stopPropagation()});
 
   modal.append(mkEl('div',{style:{fontSize:'20px',fontWeight:700,marginBottom:'20px',textAlign:'center'}},'שעון מעורר חדש'));
 
-  const timeInp=inp('time',newTime2||pad(new Date().getHours())+':'+pad(new Date().getMinutes()),'ltr');
-  const labelInp=inp('text',newLabel2,'rtl','למשל: קום לעבודה');
-  const passInp=inp('password',newPassword2,'ltr','הזן סיסמה...');
+  const timeInp=inp('time',pad(new Date().getHours())+':'+pad(new Date().getMinutes()),'ltr');
+  const labelInp=inp('text','','rtl','למשל: קום לעבודה');
+  const passInp=inp('password','','ltr','הזן סיסמה...');
 
   modal.append(lbl('שעה'),timeInp,lbl('תווית (אופציונלי)'),labelInp);
+
+  // ── Ringtone picker ──────────────────────────────────────
+  modal.append(lbl('🎵 רינגטון'));
+  const chipsWrap=div({className:'rt-chips'});
+  RINGTONES.forEach(rt=>{
+    const chip=mkEl('button',{className:'rt-chip'+(rt.id==='classic'?' selected':''),
+      onclick:()=>{
+        localRingtone=rt.id;
+        chipsWrap.querySelectorAll('.rt-chip').forEach(c=>c.classList.remove('selected'));
+        chip.classList.add('selected');
+        // preview
+        try{const ctx=getCtx();const vol=rt.id==='gentle'?0.5:1;rt.play(ctx,ctx.currentTime,vol);}catch(e){}
+      }
+    },rt.name,mkEl('span',{style:{display:'block',fontSize:'11px',color:C.muted,marginTop:'2px',fontWeight:400}},rt.desc));
+    chipsWrap.append(chip);
+  });
+  modal.append(chipsWrap);
+
+  // ── Dismiss method ───────────────────────────────────────
   modal.append(div({style:{margin:'20px 0 4px',borderTop:`1px solid ${C.border}`,paddingTop:'16px'}},
     mkEl('span',{style:{fontSize:'13px',color:C.amber,fontWeight:600}},'שיטת כיבוי (חובה לפחות אחת)')));
-  modal.append(lbl('🔑 סיסמה לכיבוי'),passInp);
-  modal.append(lbl('📷 ברקוד לכיבוי'));
 
-  // Barcode section (dynamic)
+  modal.append(lbl('🔑 סיסמה לכיבוי'),passInp);
+
+  // Barcode
+  modal.append(lbl('📷 ברקוד לכיבוי'));
   const barcodeSection=div({});
   modal.append(barcodeSection);
-
   function renderBarcodeSection(){
     barcodeSection.innerHTML='';
     if(localBarcode){
-      barcodeSection.append(div({style:{background:C.card,borderRadius:'12px',padding:'12px 16px',
-        display:'flex',justifyContent:'space-between',alignItems:'center',
-        border:`1px solid ${C.green}`,color:C.green,fontSize:'14px',fontWeight:600}},
+      barcodeSection.append(div({style:{background:C.card,borderRadius:'12px',padding:'12px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',border:`1px solid ${C.green}`,color:C.green,fontSize:'14px',fontWeight:600}},
         '✅ ברקוד נסרק!',
-        mkEl('button',{style:{background:'none',border:`1px solid ${C.dimmer}`,borderRadius:'8px',
-          padding:'4px 10px',color:C.muted,fontSize:'12px',cursor:'pointer'},
-          onclick:()=>{localBarcode='';renderBarcodeSection();}
-        },'סרוק שוב')
+        mkEl('button',{style:{background:'none',border:`1px solid ${C.dimmer}`,borderRadius:'8px',padding:'4px 10px',color:C.muted,fontSize:'12px',cursor:'pointer'},
+          onclick:()=>{localBarcode='';renderBarcodeSection();}},'סרוק שוב')
       ));
-    } else {
+    }else{
       barcodeSection.append(mkEl('button',{
-        style:{width:'100%',background:C.card,border:`1.5px dashed ${C.amberDim}`,
-          borderRadius:'12px',padding:'14px',color:C.amber,fontSize:'15px',
-          fontWeight:600,cursor:'pointer',textAlign:'center'},
-        onclick:()=>{
-          openScanner(val=>{
-            localBarcode=val;
-            newBarcode=val;
-            renderBarcodeSection();
-          });
-        }
+        style:{width:'100%',background:C.card,border:`1.5px dashed ${C.amberDim}`,borderRadius:'12px',padding:'14px',color:C.amber,fontSize:'15px',fontWeight:600,cursor:'pointer',textAlign:'center'},
+        onclick:()=>openScanner(val=>{localBarcode=val;newBarcode=val;renderBarcodeSection();},'סרוק ברקוד להגדרת כיבוי')
       },'📷 סרוק ברקוד'));
     }
   }
   renderBarcodeSection();
 
+  // Object detection
+  modal.append(lbl('🔍 זיהוי חפץ לכיבוי'));
+  const objectSection=div({});
+  modal.append(objectSection);
+  function renderObjectSection(){
+    objectSection.innerHTML='';
+    if(localObject){
+      objectSection.append(div({style:{background:C.card,borderRadius:'12px',padding:'12px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',border:`1px solid ${C.green}`,color:C.green,fontSize:'14px',fontWeight:600}},
+        '✅ '+localObject,
+        mkEl('button',{style:{background:'none',border:`1px solid ${C.dimmer}`,borderRadius:'8px',padding:'4px 10px',color:C.muted,fontSize:'12px',cursor:'pointer'},
+          onclick:()=>{localObject='';newObjectLabel='';renderObjectSection();}},'שנה')
+      ));
+    }else{
+      // Input + confirm
+      const row=div({style:{display:'flex',gap:'8px'}});
+      const objInp=mkEl('input',{type:'text',placeholder:'למשל: כוס קפה, ברז מקלחת...',dir:'rtl',
+        style:{flex:1,background:C.card,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'12px 14px',fontSize:'15px',outline:'none',color:C.text}});
+      const setBtn=mkEl('button',{
+        style:{background:C.green,color:'#000',border:'none',borderRadius:'12px',padding:'12px 16px',fontSize:'14px',fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'},
+        onclick:()=>{
+          const v=objInp.value.trim();
+          if(!v){objInp.focus();return;}
+          localObject=v;newObjectLabel=v;renderObjectSection();
+        }
+      },'✓ שמור');
+      row.append(objInp,setBtn);
+      objectSection.append(
+        row,
+        mkEl('div',{style:{fontSize:'12px',color:C.muted,marginTop:'6px'}},'💡 הזן שם חפץ שתצטרך לסרוק כדי לכבות — למשל "ברז מקלחת" או "מוצר חלב"')
+      );
+    }
+  }
+  renderObjectSection();
+
+  // Save / cancel
   const actions=div({style:{marginTop:'24px',display:'flex',flexDirection:'column',gap:'10px'}});
   actions.append(
     mkEl('button',{
-      style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',
-        padding:'15px',fontSize:'16px',fontWeight:700,cursor:'pointer',width:'100%'},
+      style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'15px',fontSize:'16px',fontWeight:700,cursor:'pointer',width:'100%'},
       onclick:()=>{
-        const t=timeInp.value,l=labelInp.value,p=passInp.value,b=localBarcode;
-        if(!t||(!p&&!b)){alert('חובה להגדיר לפחות סיסמה או ברקוד');return;}
-        alarms.push({id:Date.now(),time:t,label:l||'שעון מעורר',password:p,barcode:b,enabled:true});
-        save();showAdd=false;newBarcode='';closeScanner();render();
+        const t=timeInp.value,l=labelInp.value,p=passInp.value,b=localBarcode,o=localObject;
+        if(!t||(!p&&!b&&!o)){alert('חובה להגדיר לפחות שיטת כיבוי אחת');return;}
+        alarms.push({id:Date.now(),time:t,label:l||'שעון מעורר',password:p,barcode:b,objectLabel:o,ringtone:localRingtone,enabled:true});
+        save();showAdd=false;newBarcode='';newObjectLabel='';closeScanner();closeDetect();render();
       }
     },'שמור שעון מעורר'),
     mkEl('button',{
-      style:{background:'none',border:`1px solid ${C.border}`,borderRadius:'14px',
-        padding:'13px',fontSize:'15px',color:C.muted,cursor:'pointer',width:'100%'},
-      onclick:()=>{showAdd=false;newBarcode='';closeScanner();render();}
+      style:{background:'none',border:`1px solid ${C.border}`,borderRadius:'14px',padding:'13px',fontSize:'15px',color:C.muted,cursor:'pointer',width:'100%'},
+      onclick:()=>{showAdd=false;newBarcode='';newObjectLabel='';closeScanner();closeDetect();render();}
     },'ביטול')
   );
   modal.append(actions);
@@ -494,33 +641,10 @@ function buildAddModal(){
   return overlay;
 }
 
-// ── DOM helpers ───────────────────────────────────────────────────────────────
-function mkEl(tag,props={},...children){
-  const e=document.createElement(tag);
-  Object.entries(props).forEach(([k,v])=>{
-    if(k==='style'&&typeof v==='object')Object.assign(e.style,v);
-    else if(k==='className')e.className=v;
-    else if(k.startsWith('on'))e.addEventListener(k.slice(2).toLowerCase(),v);
-    else e.setAttribute(k,v);
-  });
-  children.flat().forEach(c=>c!=null&&e.append(typeof c==='string'?document.createTextNode(c):c));
-  return e;
-}
-function div(props={},...children){return mkEl('div',props,...children)}
-function lbl(txt){return mkEl('label',{style:{display:'block',fontSize:'13px',color:C.muted,
-  marginBottom:'6px',marginTop:'16px',fontWeight:500}},txt)}
-function inp(type,val,dir,placeholder=''){
-  const i=mkEl('input',{type,dir,placeholder,
-    style:{width:'100%',background:C.card,border:`1px solid ${C.border}`,borderRadius:'12px',
-      padding:'12px 14px',fontSize:'16px',outline:'none',color:C.text}});
-  i.value=val||'';return i;
-}
-
-// ── Clock fast-update ─────────────────────────────────────────────────────────
+// ── Clock tick ─────────────────────────────────────────────
 let lastSec=-1;
 setInterval(()=>{
-  const now=new Date();
-  const s=now.getSeconds();
+  const now=new Date();const s=now.getSeconds();
   checkAlarms();
   if(s!==lastSec&&screen==='home'){
     lastSec=s;
@@ -531,7 +655,6 @@ setInterval(()=>{
   }
 },500);
 
-// ── Boot ──────────────────────────────────────────────────────────────────────
 render();
 </script>
 </body>
