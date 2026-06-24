@@ -242,30 +242,122 @@ $('ph-shutter').onclick=()=>{
   $('pv-retry').onclick=()=>{$('pv-ov').classList.remove('on');openPhoto(savedLabel,savedCb);};
 };
 
-// ══ image similarity ═══════════════════════════════════════════════
-function imgToPixels(dataUrl,cb){const img=new Image();img.onload=()=>{const cv=document.createElement('canvas');cv.width=32;cv.height=32;cv.getContext('2d').drawImage(img,0,0,32,32);cb(cv.getContext('2d').getImageData(0,0,32,32).data);};img.src=dataUrl;}
-function similarity(d1,d2){let diff=0;for(let i=0;i<d1.length;i+=4){diff+=Math.abs(d1[i]-d2[i])+Math.abs(d1[i+1]-d2[i+1])+Math.abs(d1[i+2]-d2[i+2]);}return 1-(diff/(32*32*3*255));}
+// ══ image fingerprint (pHash + color histogram) ═════════════════════
+// Returns a fingerprint object from a dataUrl
+function computeFingerprint(dataUrl, cb) {
+  const img = new Image();
+  img.onload = () => {
+    // ── 1. pHash via DCT on 32×32 grayscale ──────────────────────
+    const SZ = 32, KEEP = 8;
+    const cv = document.createElement('canvas');
+    cv.width = SZ; cv.height = SZ;
+    const ctx = cv.getContext('2d');
+    ctx.drawImage(img, 0, 0, SZ, SZ);
+    const raw = ctx.getImageData(0, 0, SZ, SZ).data;
 
-// ══ object match ═══════════════════════════════════════════════════
-let omStream=null,omCb=null,omTargetPx=null,omName='';
+    // grayscale
+    const gray = new Float32Array(SZ * SZ);
+    for (let i = 0; i < SZ * SZ; i++)
+      gray[i] = 0.299*raw[i*4] + 0.587*raw[i*4+1] + 0.114*raw[i*4+2];
+
+    // 2D DCT (naive but fine for 32×32)
+    const dct = new Float32Array(SZ * SZ);
+    for (let u = 0; u < SZ; u++) {
+      for (let v = 0; v < SZ; v++) {
+        let sum = 0;
+        for (let x = 0; x < SZ; x++)
+          for (let y = 0; y < SZ; y++)
+            sum += gray[x*SZ+y] * Math.cos((2*x+1)*u*Math.PI/(2*SZ)) * Math.cos((2*y+1)*v*Math.PI/(2*SZ));
+        dct[u*SZ+v] = sum;
+      }
+    }
+
+    // top-left KEEP×KEEP (skip [0,0] DC)
+    const vals = [];
+    for (let u = 0; u < KEEP; u++)
+      for (let v = 0; v < KEEP; v++)
+        if (u+v > 0) vals.push(dct[u*SZ+v]);
+
+    const med = [...vals].sort((a,b)=>a-b)[Math.floor(vals.length/2)];
+    const phash = vals.map(v => v >= med ? 1 : 0);
+
+    // ── 2. Color histogram (8 bins per channel, normalized) ───────
+    const BINS = 8;
+    const hist = new Float32Array(BINS * 3).fill(0);
+    for (let i = 0; i < SZ*SZ; i++) {
+      hist[Math.floor(raw[i*4]   / 256 * BINS)]++;
+      hist[BINS   + Math.floor(raw[i*4+1] / 256 * BINS)]++;
+      hist[BINS*2 + Math.floor(raw[i*4+2] / 256 * BINS)]++;
+    }
+    const total = SZ*SZ;
+    for (let i = 0; i < hist.length; i++) hist[i] /= total;
+
+    // ── 3. Average brightness ─────────────────────────────────────
+    const avgBright = gray.reduce((a,b)=>a+b,0) / gray.length / 255;
+
+    cb({ phash, hist, avgBright });
+  };
+  img.src = dataUrl;
+}
+
+function hammingDist(a, b) {
+  let d = 0; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++; return d;
+}
+function histSimilarity(h1, h2) {
+  // Bhattacharyya coefficient
+  let sum = 0; for (let i = 0; i < h1.length; i++) sum += Math.sqrt(h1[i] * h2[i]); return sum;
+}
+
+function isMatch(fp1, fp2) {
+  // pHash: max 12/63 bits different (threshold tightened from naive pixel compare)
+  const hd = hammingDist(fp1.phash, fp2.phash);
+  // Color histogram: Bhattacharyya > 0.82
+  const hs = histSimilarity(fp1.hist, fp2.hist);
+  // Brightness: within 15%
+  const bd = Math.abs(fp1.avgBright - fp2.avgBright);
+  return hd <= 14 && hs > 0.80 && bd < 0.18;
+}
+
+// ══ object match ════════════════════════════════════════════════════
+let omStream=null,omCb=null,omTargetFp=null,omName='';
 async function openObjectMatch(obj,cb){
-  omName=obj.name;omCb=cb;$('om-label').textContent=`📸 צלם את: ${obj.name}`;$('om-status').style.display='none';$('om-ov').classList.add('on');
-  imgToPixels(obj.dataUrl,px=>{omTargetPx=px;});
+  omName=obj.name;omCb=cb;
+  $('om-label').textContent=`📸 צלם את: ${obj.name}`;
+  $('om-status').style.display='none';$('om-ov').classList.add('on');
+  // Pre-compute fingerprint of saved image
+  computeFingerprint(obj.dataUrl, fp => { omTargetFp = fp; });
   const vid=$('om-vid');
-  try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});omStream=s;vid.srcObject=s;vid.onloadedmetadata=async()=>{try{await vid.play()}catch(e){}};
+  try{
+    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+    omStream=s;vid.srcObject=s;
+    vid.onloadedmetadata=async()=>{try{await vid.play()}catch(e){}};
   }catch(e){closeObjMatch();alert('שגיאת מצלמה: '+e.message);}
 }
+
 $('om-shutter').onclick=()=>{
-  const vid=$('om-vid'),cv=document.createElement('canvas');cv.width=vid.videoWidth;cv.height=vid.videoHeight;cv.getContext('2d').drawImage(vid,0,0);
-  imgToPixels(cv.toDataURL('image/jpeg',.85),px=>{
-    if(!omTargetPx){showOmSt('⏳ טוען...','#F5A623');return;}
-    const s=similarity(omTargetPx,px);
-    if(s>0.72){showOmSt('✅ זוהה!','#2EC069');setTimeout(()=>{const c=omCb;closeObjMatch();c();},700);}
-    else{showOmSt('❌ לא נראה כמו '+omName+' — נסה שוב','#E84855');setTimeout(()=>$('om-status').style.display='none',2000);}
+  if(!omTargetFp){showOmSt('⏳ טוען... נסה שוב','#F5A623');return;}
+  const vid=$('om-vid');
+  const MAX=640,scale=Math.min(1,MAX/vid.videoWidth);
+  const cv=document.createElement('canvas');
+  cv.width=Math.round(vid.videoWidth*scale);cv.height=Math.round(vid.videoHeight*scale);
+  cv.getContext('2d').drawImage(vid,0,0,cv.width,cv.height);
+  const dataUrl=cv.toDataURL('image/jpeg',.85);
+
+  computeFingerprint(dataUrl, fp => {
+    if(isMatch(omTargetFp, fp)){
+      showOmSt('✅ זוהה!','#2EC069');
+      setTimeout(()=>{const c=omCb;closeObjMatch();c();},700);
+    } else {
+      // Show debug info to help user understand why it failed
+      const hd=hammingDist(omTargetFp.phash,fp.phash);
+      const hs=histSimilarity(omTargetFp.hist,fp.hist);
+      showOmSt(`❌ לא מזוהה (${hd} bits, צבע ${(hs*100).toFixed(0)}%) — נסה שוב`,'#E84855');
+      setTimeout(()=>$('om-status').style.display='none',2500);
+    }
   });
 };
 function showOmSt(t,c){const s=$('om-status');s.textContent=t;s.style.color=c;s.style.display='block';}
-function closeObjMatch(){if(omStream){omStream.getTracks().forEach(t=>t.stop());omStream=null;}omCb=null;omTargetPx=null;$('om-ov').classList.remove('on');$('om-vid').srcObject=null;}
+function closeObjMatch(){if(omStream){omStream.getTracks().forEach(t=>t.stop());omStream=null;}omCb=null;omTargetFp=null;$('om-ov').classList.remove('on');$('om-vid').srcObject=null;}
 $('om-close').onclick=closeObjMatch;
 
 // ══ alarm check ════════════════════════════════════════════════════
