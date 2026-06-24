@@ -11,582 +11,496 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:#0D0F14;color:#E8EAF0;font-family:system-ui,-apple-system,sans-serif}
-button,input,select{font-family:inherit}
+button,input{font-family:inherit;color:#E8EAF0}
 input::placeholder{color:#6B7280}
 input[type=time]::-webkit-calendar-picker-indicator{filter:invert(1)}
-select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%236B7280' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:left 14px center}
+
 @keyframes pulse{from{opacity:.1}to{opacity:.3}}
 @keyframes ringBell{0%,100%{transform:rotate(-15deg)}50%{transform:rotate(15deg)}}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .ring{display:inline-block;animation:ringBell .45s ease-in-out infinite}
 .shake{animation:shake .4s ease-in-out}
-.fadein{animation:fadeIn .3s ease}
+.fadein{animation:fadeIn .25s ease}
 
-/* ── scanner overlay ── */
-#scanner-overlay{display:none;position:fixed;inset:0;z-index:999;background:#000;flex-direction:column;align-items:center;justify-content:center}
-#scanner-overlay.active{display:flex}
-#scanner-video{width:100%;max-width:500px;aspect-ratio:4/3;object-fit:cover;display:block;background:#111}
-#scanner-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
-#scanner-frame{width:60%;aspect-ratio:1;border:2px solid #F5A623;border-radius:12px}
-#scanner-hint{margin-top:16px;color:rgba(255,255,255,.85);font-size:14px;background:rgba(0,0,0,.55);border-radius:8px;padding:6px 16px;text-align:center;max-width:80%}
-#scanner-close{position:absolute;top:24px;left:24px;background:rgba(0,0,0,.6);border:none;border-radius:10px;padding:10px 18px;color:#fff;font-size:15px;cursor:pointer;pointer-events:auto}
+/* ── bottom nav ── */
+#bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;
+  background:#161921;border-top:1px solid #2A2F42;display:flex;z-index:50}
+.nb{flex:1;padding:10px 0 18px;background:none;border:none;cursor:pointer;display:flex;
+  flex-direction:column;align-items:center;gap:3px;font-size:10px;color:#6B7280;transition:color .15s}
+.nb.on{color:#F5A623}
+.ni{font-size:22px;line-height:1}
 
-/* ── object-detect overlay ── */
-#detect-overlay{display:none;position:fixed;inset:0;z-index:999;background:#000;flex-direction:column;align-items:center;justify-content:center}
-#detect-overlay.active{display:flex}
-#detect-video{width:100%;max-width:500px;aspect-ratio:4/3;object-fit:cover;display:block;background:#111}
-#detect-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
-#detect-frame{width:70%;aspect-ratio:4/3;border:2px solid #2EC069;border-radius:12px}
-#detect-hint{margin-top:16px;color:rgba(255,255,255,.9);font-size:14px;background:rgba(0,0,0,.6);border-radius:8px;padding:8px 18px;text-align:center;max-width:85%;line-height:1.5}
-#detect-close{position:absolute;top:24px;left:24px;background:rgba(0,0,0,.6);border:none;border-radius:10px;padding:10px 18px;color:#fff;font-size:15px;cursor:pointer;pointer-events:auto}
-#detect-result{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);color:#2EC069;font-size:15px;font-weight:700;background:rgba(0,0,0,.75);border-radius:10px;padding:10px 20px;display:none;white-space:nowrap;pointer-events:none}
+/* ── barcode scanner overlay ── */
+#sc-ov{display:none;position:fixed;inset:0;z-index:999;background:#000;flex-direction:column;align-items:center;justify-content:center}
+#sc-ov.on{display:flex}
+#sc-vid{width:100%;max-width:500px;aspect-ratio:4/3;object-fit:cover;display:block;background:#111}
+#sc-frame{position:absolute;width:60%;aspect-ratio:1;border:2px solid #F5A623;border-radius:12px;top:50%;left:50%;transform:translate(-50%,-60%)}
+#sc-hint{position:absolute;bottom:100px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.9);font-size:14px;background:rgba(0,0,0,.6);border-radius:8px;padding:8px 18px;text-align:center;white-space:nowrap}
+#sc-close{position:absolute;top:24px;left:24px;background:rgba(0,0,0,.6);border:none;border-radius:10px;padding:10px 18px;color:#fff;font-size:15px;cursor:pointer}
 
-/* ── ringtone chips ── */
+/* ── photo capture overlay ── */
+#ph-ov{display:none;position:fixed;inset:0;z-index:999;background:#000;flex-direction:column;align-items:center;justify-content:center}
+#ph-ov.on{display:flex}
+#ph-vid{width:100%;max-width:500px;flex:1;object-fit:cover;display:block;background:#111}
+#ph-label{position:absolute;top:0;left:0;right:0;background:rgba(0,0,0,.75);padding:22px 20px 18px;font-size:15px;font-weight:600;color:#fff;text-align:center;line-height:1.55}
+#ph-bar{position:absolute;bottom:0;left:0;right:0;padding:24px;display:flex;justify-content:center;background:rgba(0,0,0,.5)}
+#ph-shutter{width:72px;height:72px;border-radius:50%;background:#fff;border:5px solid rgba(255,255,255,.35);cursor:pointer;transition:transform .1s}
+#ph-shutter:active{transform:scale(.88)}
+#ph-close{position:absolute;top:24px;left:24px;background:rgba(0,0,0,.6);border:none;border-radius:10px;padding:10px 18px;color:#fff;font-size:15px;cursor:pointer}
+
+/* ── photo preview ── */
+#pv-ov{display:none;position:fixed;inset:0;z-index:1000;background:#000;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:0}
+#pv-ov.on{display:flex}
+#pv-img{width:100%;max-width:500px;aspect-ratio:4/3;object-fit:cover}
+#pv-bar{width:100%;max-width:500px;display:flex;gap:12px;padding:20px 16px;background:#161921}
+#pv-bar button{flex:1;padding:14px;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;border:none}
+#pv-ok{background:#F5A623;color:#000}
+#pv-retry{background:#2A2F42;color:#E8EAF0}
+
+/* ── object match overlay ── */
+#om-ov{display:none;position:fixed;inset:0;z-index:999;background:#000;flex-direction:column;align-items:center;justify-content:center}
+#om-ov.on{display:flex}
+#om-vid{width:100%;max-width:500px;flex:1;object-fit:cover;display:block;background:#111}
+#om-label{position:absolute;top:0;left:0;right:0;background:rgba(0,0,0,.75);padding:22px 20px 18px;font-size:15px;font-weight:600;color:#fff;text-align:center;line-height:1.55}
+#om-bar{position:absolute;bottom:0;left:0;right:0;padding:24px;display:flex;justify-content:center;background:rgba(0,0,0,.5)}
+#om-shutter{width:72px;height:72px;border-radius:50%;background:#2EC069;border:5px solid rgba(46,192,105,.35);cursor:pointer;transition:transform .1s;display:flex;align-items:center;justify-content:center;font-size:28px}
+#om-shutter:active{transform:scale(.88)}
+#om-close{position:absolute;top:24px;left:24px;background:rgba(0,0,0,.6);border:none;border-radius:10px;padding:10px 18px;color:#fff;font-size:15px;cursor:pointer}
+#om-status{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);font-size:15px;font-weight:700;background:rgba(0,0,0,.75);border-radius:10px;padding:10px 20px;white-space:nowrap;display:none}
+
+/* ringtone chips */
 .rt-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-.rt-chip{padding:8px 14px;border-radius:20px;border:1.5px solid #2A2F42;background:#1E2230;color:#6B7280;font-size:13px;cursor:pointer;transition:all .15s}
-.rt-chip.selected{border-color:#F5A623;color:#F5A623;background:#1E2230}
+.rt-chip{padding:8px 14px;border-radius:20px;border:1.5px solid #2A2F42;background:#1E2230;color:#6B7280;font-size:13px;cursor:pointer;transition:all .15s;text-align:right}
+.rt-chip.sel{border-color:#F5A623;color:#F5A623}
+
+/* object library */
+.obj-card{background:#1E2230;border:1px solid #2A2F42;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.obj-thumb{width:50px;height:50px;border-radius:8px;object-fit:cover;background:#0D0F14;flex-shrink:0}
 </style>
 </head>
 <body>
 
-<!-- ── Barcode scanner overlay ── -->
-<div id="scanner-overlay">
-  <video id="scanner-video" autoplay playsinline muted></video>
-  <div id="scanner-ui">
-    <div id="scanner-frame"></div>
-    <div id="scanner-hint">כוון את המצלמה לברקוד</div>
-  </div>
-  <button id="scanner-close">✕ סגור</button>
+<!-- barcode scanner -->
+<div id="sc-ov">
+  <video id="sc-vid" autoplay playsinline muted></video>
+  <div id="sc-frame"></div>
+  <div id="sc-hint">כוון את המצלמה לברקוד</div>
+  <button id="sc-close">✕ סגור</button>
 </div>
 
-<!-- ── Object detect overlay ── -->
-<div id="detect-overlay">
-  <video id="detect-video" autoplay playsinline muted></video>
-  <div id="detect-ui">
-    <div id="detect-frame"></div>
-    <div id="detect-hint" id="detect-hint">מזהה חפץ...</div>
-  </div>
-  <button id="detect-close">✕ סגור</button>
-  <div id="detect-result"></div>
+<!-- photo capture (for library registration) -->
+<div id="ph-ov">
+  <video id="ph-vid" autoplay playsinline muted></video>
+  <div id="ph-label">מצלם חפץ</div>
+  <button id="ph-close">✕ סגור</button>
+  <div id="ph-bar"><button id="ph-shutter"></button></div>
 </div>
 
-<div id="root"></div>
+<!-- photo preview after capture -->
+<div id="pv-ov">
+  <img id="pv-img" src="" alt="תצוגה מקדימה">
+  <div id="pv-bar">
+    <button id="pv-ok">✓ שמור</button>
+    <button id="pv-retry">↺ צלם שוב</button>
+  </div>
+</div>
+
+<!-- object match (dismiss) -->
+<div id="om-ov">
+  <video id="om-vid" autoplay playsinline muted></video>
+  <div id="om-label">כוון אל החפץ ולחץ לצלם</div>
+  <button id="om-close">✕ סגור</button>
+  <div id="om-status"></div>
+  <div id="om-bar"><button id="om-shutter">📷</button></div>
+</div>
+
+<div id="root" style="padding-bottom:64px"></div>
+<div id="bnav">
+  <button class="nb on" data-tab="alarms" onclick="switchTab('alarms')"><span class="ni">⏰</span>שעונים</button>
+  <button class="nb" data-tab="library" onclick="switchTab('library')"><span class="ni">🖼️</span>ספריית חפצים</button>
+  <button class="nb" data-tab="settings" onclick="switchTab('settings')"><span class="ni">⚙️</span>הגדרות</button>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 <script>
-// ══════════════════════════════════════════════════════════
-// PALETTE & HELPERS
-// ══════════════════════════════════════════════════════════
+// ══ palette & helpers ══════════════════════════════════════════════
 const C={bg:'#0D0F14',surface:'#161921',card:'#1E2230',border:'#2A2F42',
-  amber:'#F5A623',amberDim:'#7A5310',red:'#E84855',green:'#2EC069',
-  text:'#E8EAF0',muted:'#6B7280',dimmer:'#3A3F52'};
+  amber:'#F5A623',amberDim:'#7A5310',red:'#E84855',green:'#2EC069',text:'#E8EAF0',muted:'#6B7280',dimmer:'#3A3F52'};
 const pad=n=>String(n).padStart(2,'0');
 const $=id=>document.getElementById(id);
-function mkEl(tag,props={},...children){
+function el(tag,p={},...kids){
   const e=document.createElement(tag);
-  Object.entries(props).forEach(([k,v])=>{
+  for(const[k,v]of Object.entries(p)){
     if(k==='style'&&typeof v==='object')Object.assign(e.style,v);
-    else if(k==='className')e.className=v;
-    else if(k.startsWith('on'))e.addEventListener(k.slice(2).toLowerCase(),v);
+    else if(k==='cls')e.className=v;
+    else if(k[0]==='o'&&k[1]==='n')e.addEventListener(k.slice(2).toLowerCase(),v);
     else e.setAttribute(k,v);
-  });
-  children.flat().forEach(c=>c!=null&&e.append(typeof c==='string'?document.createTextNode(c):c));
+  }
+  kids.flat().forEach(c=>c!=null&&e.append(typeof c==='string'?document.createTextNode(c):c));
   return e;
 }
-const div=(p={},...c)=>mkEl('div',p,...c);
-const lbl=t=>mkEl('label',{style:{display:'block',fontSize:'13px',color:C.muted,marginBottom:'6px',marginTop:'16px',fontWeight:500}},t);
-const inp=(type,val,dir,ph='')=>{const i=mkEl('input',{type,dir,placeholder:ph,style:{width:'100%',background:C.card,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'12px 14px',fontSize:'16px',outline:'none',color:C.text}});i.value=val||'';return i;};
+const div=(p,...c)=>el('div',p,...c);
+const btn=(p,...c)=>el('button',p,...c);
+const lbl=t=>el('label',{style:{display:'block',fontSize:'13px',color:C.muted,marginBottom:'6px',marginTop:'16px',fontWeight:500}},t);
+function inp(type,val,dir,ph=''){
+  const i=el('input',{type,dir,placeholder:ph,style:{width:'100%',background:C.card,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'12px 14px',fontSize:'16px',outline:'none',color:C.text}});
+  i.value=val||'';return i;
+}
 
-// ══════════════════════════════════════════════════════════
-// RINGTONES  (all via Web Audio — no files needed)
-// ══════════════════════════════════════════════════════════
-const RINGTONES = [
-  {
-    id:'classic', name:'📢 קלאסי', desc:'ביפים חדים',
-    play(ctx, t, vol){
-      const o=ctx.createOscillator(), g=ctx.createGain();
-      o.connect(g);g.connect(ctx.destination);
-      o.type='square';
-      o.frequency.setValueAtTime(880,t);
-      o.frequency.exponentialRampToValueAtTime(440,t+.1);
-      g.gain.setValueAtTime(vol*.3,t);
-      g.gain.exponentialRampToValueAtTime(.001,t+.4);
-      o.start(t);o.stop(t+.4);
-    }
-  },
-  {
-    id:'gentle', name:'🌅 מתגבר', desc:'מתחיל רגוע ומתחזק',
-    // handled specially — volume ramps up over time
-    play(ctx, t, vol){
-      const o=ctx.createOscillator(), g=ctx.createGain();
-      o.connect(g);g.connect(ctx.destination);
-      o.type='sine';
-      o.frequency.setValueAtTime(440,t);
-      o.frequency.linearRampToValueAtTime(528,t+.6);
-      g.gain.setValueAtTime(vol*.04,t);
-      g.gain.linearRampToValueAtTime(vol*.25,t+.5);
-      g.gain.exponentialRampToValueAtTime(.001,t+.8);
-      o.start(t);o.stop(t+.8);
-    }
-  },
-  {
-    id:'digital', name:'📱 דיגיטלי', desc:'ריצוד מודרני',
-    play(ctx, t, vol){
-      [0,.1,.2].forEach((dt,i)=>{
-        const o=ctx.createOscillator(),g=ctx.createGain();
-        o.connect(g);g.connect(ctx.destination);
-        o.type='sawtooth';
-        o.frequency.setValueAtTime(660+i*110,t+dt);
-        g.gain.setValueAtTime(vol*.2,t+dt);
-        g.gain.exponentialRampToValueAtTime(.001,t+dt+.08);
-        o.start(t+dt);o.stop(t+dt+.1);
-      });
-    }
-  },
-  {
-    id:'bell', name:'🔔 פעמון', desc:'צלצול רך',
-    play(ctx, t, vol){
-      [1,2,4,6].forEach((harmonic,i)=>{
-        const o=ctx.createOscillator(),g=ctx.createGain();
-        o.connect(g);g.connect(ctx.destination);
-        o.type='sine';
-        o.frequency.value=523.25*harmonic;
-        g.gain.setValueAtTime(vol*.15/harmonic,t);
-        g.gain.exponentialRampToValueAtTime(.001,t+1.5);
-        o.start(t);o.stop(t+1.6);
-      });
-    }
-  },
-  {
-    id:'siren', name:'🚨 צופר', desc:'דחוף וחזק',
-    play(ctx, t, vol){
-      const o=ctx.createOscillator(),g=ctx.createGain();
-      o.connect(g);g.connect(ctx.destination);
-      o.type='sawtooth';
-      o.frequency.setValueAtTime(400,t);
-      o.frequency.linearRampToValueAtTime(800,t+.3);
-      o.frequency.linearRampToValueAtTime(400,t+.6);
-      g.gain.setValueAtTime(vol*.25,t);
-      g.gain.exponentialRampToValueAtTime(.001,t+.65);
-      o.start(t);o.stop(t+.7);
-    }
-  }
+// ══ storage ════════════════════════════════════════════════════════
+function load(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch{return def}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
+
+let alarms   = load('alarms',[]);
+let objLib   = load('objLib',[]); // [{id,name,dataUrl}]
+let settings = load('settings',{masterPassword:'',ringtone:'classic'});
+
+const saveAlarms=()=>save('alarms',alarms);
+const saveLib=()=>save('objLib',objLib);
+const saveSettings=()=>save('settings',settings);
+
+// ══ ringtones ══════════════════════════════════════════════════════
+const RINGTONES=[
+  {id:'classic',name:'📢 קלאסי',desc:'ביפים חדים',
+    play(ctx,t,vol){const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='square';o.frequency.setValueAtTime(880,t);o.frequency.exponentialRampToValueAtTime(440,t+.1);g.gain.setValueAtTime(vol*.3,t);g.gain.exponentialRampToValueAtTime(.001,t+.4);o.start(t);o.stop(t+.4);}},
+  {id:'gentle',name:'🌅 מתגבר',desc:'מתחיל רגוע ומתחזק',
+    play(ctx,t,vol){const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.setValueAtTime(440,t);o.frequency.linearRampToValueAtTime(528,t+.6);g.gain.setValueAtTime(vol*.04,t);g.gain.linearRampToValueAtTime(vol*.25,t+.5);g.gain.exponentialRampToValueAtTime(.001,t+.8);o.start(t);o.stop(t+.8);}},
+  {id:'digital',name:'📱 דיגיטלי',desc:'ריצוד מודרני',
+    play(ctx,t,vol){[0,.1,.2].forEach((dt,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sawtooth';o.frequency.setValueAtTime(660+i*110,t+dt);g.gain.setValueAtTime(vol*.2,t+dt);g.gain.exponentialRampToValueAtTime(.001,t+dt+.08);o.start(t+dt);o.stop(t+dt+.1);});}},
+  {id:'bell',name:'🔔 פעמון',desc:'צלצול רך',
+    play(ctx,t,vol){[1,2,4,6].forEach((h,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.value=523.25*h;g.gain.setValueAtTime(vol*.15/h,t);g.gain.exponentialRampToValueAtTime(.001,t+1.5);o.start(t);o.stop(t+1.6);});}},
+  {id:'siren',name:'🚨 צופר',desc:'דחוף וחזק',
+    play(ctx,t,vol){const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sawtooth';o.frequency.setValueAtTime(400,t);o.frequency.linearRampToValueAtTime(800,t+.3);o.frequency.linearRampToValueAtTime(400,t+.6);g.gain.setValueAtTime(vol*.25,t);g.gain.exponentialRampToValueAtTime(.001,t+.65);o.start(t);o.stop(t+.7);}}
 ];
 
-// ── Gentle ringtone ramps volume up over ~2 minutes ──────
-let gentleVolume=0.05;  // starts very quiet
-let beepCount=0;
+let audioCtx=null,beepIv=null,gentleVol=0.05,beepN=0;
+function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx;}
+function playBeep(rid){try{const ctx=getCtx(),rt=RINGTONES.find(r=>r.id===rid)||RINGTONES[0];rt.play(ctx,ctx.currentTime,rid==='gentle'?gentleVol:1);}catch(e){}}
+function startSound(rid){beepN=0;gentleVol=0.05;playBeep(rid);clearInterval(beepIv);beepIv=setInterval(()=>{beepN++;if(rid==='gentle')gentleVol=Math.min(1,.05+beepN/120);playBeep(rid);},rid==='gentle'?900:800);}
+const stopSound=()=>{clearInterval(beepIv);beepN=0;gentleVol=0.05;};
 
-let audioCtx=null, beepIv=null;
-function getCtx(){
-  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-  if(audioCtx.state==='suspended')audioCtx.resume();
-  return audioCtx;
-}
-
-function playBeep(ringtoneId){
-  try{
-    const ctx=getCtx();
-    const rt=RINGTONES.find(r=>r.id===ringtoneId)||RINGTONES[0];
-    const vol = ringtoneId==='gentle' ? gentleVolume : 1;
-    rt.play(ctx, ctx.currentTime, vol);
-  }catch(e){}
-}
-
-function startSound(ringtoneId){
-  beepCount=0; gentleVolume=0.05;
-  const isGentle = ringtoneId==='gentle';
-  const interval = isGentle ? 900 : 800;
-  playBeep(ringtoneId);
-  clearInterval(beepIv);
-  beepIv=setInterval(()=>{
-    beepCount++;
-    if(isGentle){
-      // ramp volume: 0.05 → 1.0 over ~120 beeps (~108 sec)
-      gentleVolume=Math.min(1, 0.05 + beepCount/120);
-    }
-    playBeep(ringtoneId);
-  },interval);
-}
-const stopSound=()=>{clearInterval(beepIv);beepCount=0;gentleVolume=0.05;};
-
-// ── Vibration ──────────────────────────────────────────────
 let vibIv=null;
 function startVib(){if(!('vibrate'in navigator))return;navigator.vibrate([300,100,300]);vibIv=setInterval(()=>navigator.vibrate([300,100,300]),700);}
 function stopVib(){clearInterval(vibIv);if('vibrate'in navigator)navigator.vibrate(0);}
 
-// ══════════════════════════════════════════════════════════
-// BARCODE SCANNER
-// ══════════════════════════════════════════════════════════
-let scanStream=null,scanRaf=null,scanCallback=null;
-async function openScanner(callback,hint){
-  scanCallback=callback;
-  $('scanner-hint').textContent=hint||'כוון את המצלמה לברקוד';
-  $('scanner-overlay').classList.add('active');
-  const video=$('scanner-video');
-  if(scanStream){startScanLoop(video);return;}
+// ══ barcode scanner ════════════════════════════════════════════════
+let scStream=null,scRaf=null,scCb=null;
+async function openScanner(cb){
+  scCb=cb;$('sc-ov').classList.add('on');
+  const vid=$('sc-vid');
+  if(scStream){startScLoop(vid);return;}
   try{
-    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
-    scanStream=stream;video.srcObject=stream;
-    video.onloadedmetadata=async()=>{try{await video.play()}catch(e){}startScanLoop(video);};
-  }catch(err){closeScanner();alert('לא ניתן לגשת למצלמה.\n'+err.message);}
+    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+    scStream=s;vid.srcObject=s;
+    vid.onloadedmetadata=async()=>{try{await vid.play()}catch(e){}startScLoop(vid);};
+  }catch(e){closeScanner();alert('שגיאת מצלמה: '+e.message);}
 }
-function startScanLoop(video){
-  cancelAnimationFrame(scanRaf);
-  const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
-  let bdet=null;if('BarcodeDetector'in window){try{bdet=new BarcodeDetector()}catch(_){}}
+function startScLoop(vid){
+  cancelAnimationFrame(scRaf);
+  const cv=document.createElement('canvas'),ctx=cv.getContext('2d');
+  let bd=null;if('BarcodeDetector'in window){try{bd=new BarcodeDetector()}catch(_){}}
   async function tick(){
-    if(!scanStream)return;
-    if(video.readyState>=video.HAVE_ENOUGH_DATA&&video.videoWidth>0){
-      canvas.width=video.videoWidth;canvas.height=video.videoHeight;
-      ctx.drawImage(video,0,0);
-      let result=null;
-      if(bdet){try{const r=await bdet.detect(video);if(r.length)result=r[0].rawValue}catch(_){}}
-      if(!result&&window.jsQR){const d=ctx.getImageData(0,0,canvas.width,canvas.height);const qr=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});if(qr)result=qr.data;}
-      if(result){const cb=scanCallback;closeScanner();cb(result);return;}
+    if(!scStream)return;
+    if(vid.readyState>=vid.HAVE_ENOUGH_DATA&&vid.videoWidth>0){
+      cv.width=vid.videoWidth;cv.height=vid.videoHeight;ctx.drawImage(vid,0,0);
+      let r=null;
+      if(bd){try{const res=await bd.detect(vid);if(res.length)r=res[0].rawValue}catch(_){}}
+      if(!r&&window.jsQR){const d=ctx.getImageData(0,0,cv.width,cv.height);const q=jsQR(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});if(q)r=q.data;}
+      if(r){const c=scCb;closeScanner();c(r);return;}
     }
-    scanRaf=requestAnimationFrame(tick);
+    scRaf=requestAnimationFrame(tick);
   }
-  scanRaf=requestAnimationFrame(tick);
+  scRaf=requestAnimationFrame(tick);
 }
 function closeScanner(){
-  cancelAnimationFrame(scanRaf);scanRaf=null;
-  if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;}
-  scanCallback=null;
-  $('scanner-overlay').classList.remove('active');
-  $('scanner-video').srcObject=null;
+  cancelAnimationFrame(scRaf);scRaf=null;
+  if(scStream){scStream.getTracks().forEach(t=>t.stop());scStream=null;}
+  scCb=null;$('sc-ov').classList.remove('on');$('sc-vid').srcObject=null;
 }
-$('scanner-close').onclick=()=>closeScanner();
+$('sc-close').onclick=closeScanner;
 
-// ══════════════════════════════════════════════════════════
-// OBJECT DETECTION  (via Claude Vision API)
-// ══════════════════════════════════════════════════════════
-// ── Object map: Hebrew → COCO-SSD English labels ─────────────────────────────
-// COCO-SSD recognizes 80 classes. We map common Hebrew words to them.
-const OBJECT_MAP = {
-  // kitchen / drink
-  'כוס': ['cup','wine glass','bottle'],
-  'כוס קפה': ['cup'],
-  'בקבוק': ['bottle'],
-  'כיסא': ['chair'],
-  'ספה': ['couch','sofa'],
-  'שולחן': ['dining table'],
-  'מחשב': ['laptop','computer','keyboard','mouse'],
-  'טלפון': ['cell phone'],
-  'ספר': ['book'],
-  'שעון': ['clock'],
-  'אוכל': ['sandwich','pizza','hot dog','cake','donut'],
-  'פרי': ['apple','orange','banana'],
-  'תפוח': ['apple'],
-  'בננה': ['banana'],
-  'כלב': ['dog'],
-  'חתול': ['cat'],
-  'אדם': ['person'],
-  'מכונית': ['car'],
-  'אופניים': ['bicycle'],
-  'ברז': ['sink'],           // closest to tap/faucet
-  'כיור': ['sink'],
-  'אסלה': ['toilet'],
-  'מקלחת': ['sink'],        // no shower class — use sink as proxy
-  'מראה': ['tv'],           // no mirror — fallback
-  'מיטה': ['bed'],
-  'טלוויזיה': ['tv'],
-  'תיק': ['handbag','backpack','suitcase'],
-  'מזוודה': ['suitcase'],
-  'עציץ': ['potted plant'],
+// ══ photo capture ══════════════════════════════════════════════════
+let phStream=null,phCb=null,phLabel='';
+async function openPhoto(labelText, cb){
+  phLabel=labelText;phCb=cb;
+  $('ph-label').textContent=labelText;
+  $('ph-ov').classList.add('on');
+  const vid=$('ph-vid');
+  if(phStream){vid.srcObject=phStream;try{await vid.play()}catch(e){};return;}
+  try{
+    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+    phStream=s;vid.srcObject=s;
+    vid.onloadedmetadata=async()=>{try{await vid.play()}catch(e){}};
+  }catch(e){closePhoto();alert('שגיאת מצלמה: '+e.message);}
+}
+function capturePhoto(){
+  const vid=$('ph-vid');
+  const cv=document.createElement('canvas');
+  cv.width=vid.videoWidth;cv.height=vid.videoHeight;
+  cv.getContext('2d').drawImage(vid,0,0);
+  return cv.toDataURL('image/jpeg',.85);
+}
+function closePhoto(){
+  if(phStream){phStream.getTracks().forEach(t=>t.stop());phStream=null;}
+  phCb=null;$('ph-ov').classList.remove('on');$('ph-vid').srcObject=null;
+}
+$('ph-close').onclick=closePhoto;
+$('ph-shutter').onclick=()=>{
+  const dataUrl=capturePhoto();
+  closePhoto();
+  // show preview
+  $('pv-img').src=dataUrl;
+  $('pv-ov').classList.add('on');
+  $('pv-ok').onclick=()=>{$('pv-ov').classList.remove('on');if(phCb)phCb(dataUrl);};
+  $('pv-retry').onclick=()=>{$('pv-ov').classList.remove('on');openPhoto(phLabel,phCb);};
 };
 
-// Build reverse lookup: english label → true
-function getTargetLabels(hebrewInput) {
-  const input = hebrewInput.trim().toLowerCase();
-  // exact match
-  if (OBJECT_MAP[input]) return OBJECT_MAP[input];
-  // partial match
-  for (const [he, en] of Object.entries(OBJECT_MAP)) {
-    if (input.includes(he) || he.includes(input)) return en;
+// ══ image similarity (pixel-based) ════════════════════════════════
+// Resize both images to 32×32 and compare average color distance
+function imgToPixels(dataUrl,cb){
+  const img=new Image();
+  img.onload=()=>{
+    const cv=document.createElement('canvas');cv.width=32;cv.height=32;
+    cv.getContext('2d').drawImage(img,0,0,32,32);
+    cb(cv.getContext('2d').getImageData(0,0,32,32).data);
+  };
+  img.src=dataUrl;
+}
+function similarity(d1,d2){
+  let diff=0;
+  for(let i=0;i<d1.length;i+=4){
+    diff+=Math.abs(d1[i]-d2[i])+Math.abs(d1[i+1]-d2[i+1])+Math.abs(d1[i+2]-d2[i+2]);
   }
-  // fallback: try to detect "person" for anything unknown, but return null
-  // so we show a friendly error
-  return null;
+  // normalize: 0=identical, 1=completely different
+  return 1-(diff/(32*32*3*255));
 }
 
-let detectStream=null, detectCallback=null, detectTarget=null, detectLabels=null;
-let detectCapturing=false, cocoModel=null, cocoLoading=false;
-
-async function loadCoco() {
-  if (cocoModel) return cocoModel;
-  if (cocoLoading) {
-    // wait for it
-    while (cocoLoading) await new Promise(r => setTimeout(r, 200));
-    return cocoModel;
-  }
-  cocoLoading = true;
-  try {
-    cocoModel = await cocoSsd.load();
-  } catch(e) { console.error('COCO load error', e); }
-  cocoLoading = false;
-  return cocoModel;
+// ══ object match (dismiss) ═════════════════════════════════════════
+let omStream=null,omCb=null,omTargetPixels=null,omObjName='';
+async function openObjectMatch(obj, cb){
+  // obj = {id,name,dataUrl}
+  omObjName=obj.name;omCb=cb;
+  $('om-label').textContent=`📸 צלם את: ${obj.name}`;
+  $('om-status').style.display='none';
+  $('om-ov').classList.add('on');
+  // pre-load target pixels
+  imgToPixels(obj.dataUrl,px=>{omTargetPixels=px;});
+  const vid=$('om-vid');
+  try{
+    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+    omStream=s;vid.srcObject=s;
+    vid.onloadedmetadata=async()=>{try{await vid.play()}catch(e){}};
+  }catch(e){closeObjMatch();alert('שגיאת מצלמה: '+e.message);}
 }
-
-async function openObjectDetect(targetLabel, callback){
-  detectTarget = targetLabel;
-  detectLabels = getTargetLabels(targetLabel);
-  detectCallback = callback;
-
-  if (!detectLabels) {
-    // Unknown object — show supported list
-    const supported = Object.keys(OBJECT_MAP).join('، ');
-    alert(`"${targetLabel}" לא נמצא ברשימת החפצים הנתמכים.\n\nחפצים נתמכים:\n${supported}`);
-    return;
-  }
-
-  $('detect-hint').textContent = `מחפש: ${targetLabel}…\nכוון את המצלמה לחפץ`;
-  $('detect-result').style.display = 'none';
-  $('detect-overlay').classList.add('active');
-  detectCapturing = false;
-
-  // Show loading state while model loads
-  $('detect-hint').textContent = '⏳ טוען מודל זיהוי…';
-
-  const video = $('detect-video');
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}}
-    });
-    detectStream = stream;
-    video.srcObject = stream;
-    video.onloadedmetadata = async () => {
-      try { await video.play(); } catch(e) {}
-      const model = await loadCoco();
-      if (!model) {
-        closeDetect();
-        alert('לא ניתן לטעון מודל זיהוי חפצים. ודא שיש חיבור אינטרנט.');
-        return;
-      }
-      $('detect-hint').textContent = `מחפש: ${detectTarget}\nכוון את המצלמה לחפץ`;
-      startDetectLoop(video, model);
-    };
-  } catch(err) {
-    closeDetect();
-    alert('לא ניתן לגשת למצלמה.\n' + err.message);
-  }
-}
-
-function startDetectLoop(video, model){
-  if (detectCapturing) return;
-  detectCapturing = true;
-
-  async function tick(){
-    if (!detectStream || !$('detect-overlay').classList.contains('active')) return;
-    if (video.readyState >= video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
-      try {
-        const predictions = await model.detect(video);
-        const found = predictions.find(p =>
-          detectLabels.some(lbl => p.class.toLowerCase().includes(lbl)) && p.score > 0.45
-        );
-        if (found) {
-          const rd = $('detect-result');
-          rd.textContent = `✅ זוהה: ${detectTarget}!`;
-          rd.style.display = 'block';
-          setTimeout(() => {
-            const cb = detectCallback;
-            closeDetect();
-            cb(detectTarget);
-          }, 600);
-          return;
-        }
-      } catch(e) {}
+$('om-shutter').onclick=()=>{
+  const vid=$('om-vid');
+  const cv=document.createElement('canvas');
+  cv.width=vid.videoWidth;cv.height=vid.videoHeight;
+  cv.getContext('2d').drawImage(vid,0,0);
+  const dataUrl=cv.toDataURL('image/jpeg',.85);
+  imgToPixels(dataUrl,px=>{
+    if(!omTargetPixels){showOmStatus('⏳ טוען...','#F5A623');return;}
+    const score=similarity(omTargetPixels,px);
+    if(score>0.72){
+      showOmStatus('✅ זוהה!','#2EC069');
+      setTimeout(()=>{const c=omCb;closeObjMatch();c();},700);
+    }else{
+      showOmStatus('❌ לא נראה כמו '+omObjName+' — נסה שוב','#E84855');
+      setTimeout(()=>{$('om-status').style.display='none';},2000);
     }
-    if ($('detect-overlay').classList.contains('active')) {
-      setTimeout(tick, 400);
-    }
-  }
-  setTimeout(tick, 300);
+  });
+};
+function showOmStatus(txt,color){
+  const s=$('om-status');s.textContent=txt;s.style.color=color;s.style.display='block';
 }
-
-function closeDetect(){
-  detectCapturing = false;
-  if (detectStream) { detectStream.getTracks().forEach(t => t.stop()); detectStream = null; }
-  detectCallback = null; detectTarget = null; detectLabels = null;
-  $('detect-overlay').classList.remove('active');
-  $('detect-video').srcObject = null;
+function closeObjMatch(){
+  if(omStream){omStream.getTracks().forEach(t=>t.stop());omStream=null;}
+  omCb=null;omTargetPixels=null;$('om-ov').classList.remove('on');$('om-vid').srcObject=null;
 }
-$('detect-close').onclick = () => closeDetect();
+$('om-close').onclick=closeObjMatch;
 
-// ══════════════════════════════════════════════════════════
-// APP STATE
-// ══════════════════════════════════════════════════════════
-let alarms=[];
-try{alarms=JSON.parse(localStorage.getItem('alarms')||'[]')}catch{}
-let activeAlarm=null,screen='home',dismissMode=null,showAdd=false;
-let newBarcode='',newObjectLabel='';
-let lastTriggeredKey='';
-const save=()=>{try{localStorage.setItem('alarms',JSON.stringify(alarms))}catch{}};
+// ══ app state ══════════════════════════════════════════════════════
+let activeAlarm=null,screen='home',dismissMode=null,curTab='alarms',showAdd=false;
+let lastTrigKey='';
 
-// ── Alarm trigger ──────────────────────────────────────────
 function checkAlarms(){
   if(screen!=='home')return;
   const now=new Date();
   const ts=pad(now.getHours())+':'+pad(now.getMinutes());
   const key=ts+'-'+now.getDate();
-  if(key===lastTriggeredKey)return;
+  if(key===lastTrigKey)return;
   const a=alarms.find(a=>a.enabled&&a.time===ts);
-  if(a){lastTriggeredKey=key;triggerAlarm(a);}
+  if(a){lastTrigKey=key;triggerAlarm(a);}
 }
 function triggerAlarm(a){
   activeAlarm=a;screen='dismiss';dismissMode=null;
   startSound(a.ringtone||'classic');startVib();render();
 }
 function dismissAlarm(){
-  stopSound();stopVib();closeScanner();closeDetect();
+  stopSound();stopVib();closeScanner();closeObjMatch();
   alarms=alarms.map(a=>a.id===activeAlarm.id?{...a,enabled:false}:a);
-  save();activeAlarm=null;screen='home';dismissMode=null;render();
+  saveAlarms();activeAlarm=null;screen='home';dismissMode=null;render();
 }
-function shake(){const el=$('dismiss-content');if(!el)return;el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake');}
+function doShake(){const e=$('dc');if(!e)return;e.classList.remove('shake');void e.offsetWidth;e.classList.add('shake');}
 
-// ══════════════════════════════════════════════════════════
-// RENDER
-// ══════════════════════════════════════════════════════════
-function render(){$('root').innerHTML='';$('root').append(screen==='dismiss'?buildDismiss():buildHome());}
+function switchTab(t){
+  curTab=t;
+  document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
+  render();
+}
 
-// ── DISMISS SCREEN ─────────────────────────────────────────
+// ══ render ══════════════════════════════════════════════════════════
+function render(){
+  $('root').innerHTML='';
+  if(screen==='dismiss'){$('root').append(buildDismiss());return;}
+  if(curTab==='alarms')$('root').append(buildAlarmsTab());
+  else if(curTab==='library')$('root').append(buildLibraryTab());
+  else $('root').append(buildSettingsTab());
+}
+
+// ══ DISMISS ════════════════════════════════════════════════════════
 function buildDismiss(){
   const wrap=div({style:{position:'fixed',inset:0,background:C.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden',direction:'rtl'}});
   wrap.append(div({style:{position:'absolute',inset:0,background:`radial-gradient(ellipse at 50% 30%,${C.amber} 0%,transparent 70%)`,animation:'pulse .8s ease-in-out infinite alternate',pointerEvents:'none'}}));
-  const content=div({id:'dismiss-content',style:{position:'relative',display:'flex',flexDirection:'column',alignItems:'center',gap:'12px',padding:'0 24px',width:'100%',maxWidth:'380px'}});
+  const content=div({id:'dc',style:{position:'relative',display:'flex',flexDirection:'column',alignItems:'center',gap:'12px',padding:'0 24px',width:'100%',maxWidth:'380px'}});
   content.append(
-    mkEl('div',{className:'ring',style:{fontSize:'64px'}},'⏰'),
-    mkEl('div',{style:{fontSize:'64px',fontWeight:200,color:C.text,letterSpacing:'-3px',fontVariantNumeric:'tabular-nums'}},activeAlarm.time),
-    mkEl('div',{style:{fontSize:'22px',fontWeight:600,textAlign:'center'}},activeAlarm.label),
-    mkEl('div',{style:{fontSize:'15px',color:C.muted,marginBottom:'8px'}},'כבה את השעון המעורר')
+    el('div',{cls:'ring',style:{fontSize:'64px'}},'⏰'),
+    el('div',{style:{fontSize:'64px',fontWeight:200,color:C.text,letterSpacing:'-3px',fontVariantNumeric:'tabular-nums'}},activeAlarm.time),
+    el('div',{style:{fontSize:'22px',fontWeight:600,textAlign:'center'}},activeAlarm.label),
+    el('div',{style:{fontSize:'15px',color:C.muted,marginBottom:'8px'}},'כבה את השעון המעורר')
   );
 
   if(dismissMode===null){
     const btns=div({style:{display:'flex',gap:'10px',width:'100%',flexWrap:'wrap',justifyContent:'center'}});
+
     if(activeAlarm.barcode){
-      btns.append(dismissBtn('📷','סרוק ברקוד',()=>{
+      btns.append(dBtn('📷','סרוק ברקוד',()=>{
         dismissMode='scan';render();
         openScanner(val=>{
           if(val===activeAlarm.barcode)dismissAlarm();
           else{dismissMode='scan-wrong';render();}
-        },'כוון את המצלמה לברקוד שהגדרת');
+        });
       }));
     }
-    if(activeAlarm.objectLabel){
-      btns.append(dismissBtn('🔍','זהה חפץ',()=>{
-        dismissMode='object';render();
-        openObjectDetect(activeAlarm.objectLabel,()=>dismissAlarm());
-      }));
+    if(activeAlarm.objId){
+      const obj=objLib.find(o=>o.id===activeAlarm.objId);
+      if(obj){
+        btns.append(dBtn('📸','צלם חפץ',()=>{
+          dismissMode='object';render();
+          openObjectMatch(obj,()=>dismissAlarm());
+        }));
+      }
     }
     if(activeAlarm.password){
-      btns.append(dismissBtn('🔑','הזן סיסמה',()=>{dismissMode='password';render();setTimeout(()=>$('pass-inp')?.focus(),80);}));
+      btns.append(dBtn('🔑','הזן סיסמה',()=>{dismissMode='password';render();setTimeout(()=>$('pi')?.focus(),80);}));
     }
+
+    // master password button always
+    btns.append(dBtn('🔓','סיסמת מאסטר',()=>{dismissMode='master';render();setTimeout(()=>$('mi')?.focus(),80);}));
+
     content.append(btns);
   }
 
   if(dismissMode==='scan-wrong'){
-    content.append(div({style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'14px',width:'100%'},className:'fadein'},
-      mkEl('div',{style:{fontSize:'48px'}},'❌'),
-      mkEl('div',{style:{color:C.red,fontSize:'17px',fontWeight:700}},'ברקוד לא נכון!'),
-      mkEl('button',{style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'14px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'},
-        onclick:()=>{dismissMode='scan';render();openScanner(val=>{if(val===activeAlarm.barcode)dismissAlarm();else{dismissMode='scan-wrong';render();shake();}});}
+    content.append(div({cls:'fadein',style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'14px',width:'100%'}},
+      el('div',{style:{fontSize:'48px'}},'❌'),
+      el('div',{style:{color:C.red,fontSize:'17px',fontWeight:700}},'ברקוד לא נכון!'),
+      btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'14px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'},
+        onclick:()=>{dismissMode='scan';render();openScanner(val=>{if(val===activeAlarm.barcode)dismissAlarm();else{dismissMode='scan-wrong';render();doShake();}});}
       },'נסה שוב'),
-      mkEl('button',{style:{background:'none',border:'none',color:C.muted,fontSize:'14px',cursor:'pointer'},onclick:()=>{dismissMode=null;render();}},'← חזור')
+      btn({style:{background:'none',border:'none',color:C.muted,fontSize:'14px',cursor:'pointer'},onclick:()=>{dismissMode=null;render();}},'← חזור')
     ));
   }
 
   if(dismissMode==='object'){
-    content.append(div({style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'12px',width:'100%'},className:'fadein'},
-      mkEl('div',{style:{fontSize:'36px'}},'🔍'),
-      mkEl('div',{style:{color:C.text,fontSize:'16px',fontWeight:600,textAlign:'center'}},'המצלמה פועלת ברקע'),
-      mkEl('div',{style:{color:C.muted,fontSize:'14px',textAlign:'center'}},`כוון אל: ${activeAlarm.objectLabel}`),
-      mkEl('button',{style:{background:'none',border:'none',color:C.muted,fontSize:'14px',cursor:'pointer',marginTop:'8px'},
-        onclick:()=>{closeDetect();dismissMode=null;render();}},'← חזור')
+    content.append(div({cls:'fadein',style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'12px',width:'100%'}},
+      el('div',{style:{fontSize:'36px'}},'📸'),
+      el('div',{style:{color:C.text,fontSize:'16px',fontWeight:600,textAlign:'center'}},'המצלמה פועלת — צלם את החפץ'),
+      btn({style:{background:'none',border:'none',color:C.muted,fontSize:'14px',cursor:'pointer',marginTop:'8px'},
+        onclick:()=>{closeObjMatch();dismissMode=null;render();}},'← חזור')
     ));
   }
 
-  if(dismissMode==='password'){
-    const pw=div({style:{width:'100%',display:'flex',flexDirection:'column',gap:'10px',alignItems:'center'},className:'fadein'});
-    const pinp=mkEl('input',{id:'pass-inp',type:'password',placeholder:'הזן סיסמה...',dir:'ltr',
+  // password
+  function buildPwMode(id, checkFn, backFn){
+    const pw=div({cls:'fadein',style:{width:'100%',display:'flex',flexDirection:'column',gap:'10px',alignItems:'center'}});
+    const pinp=el('input',{id,type:'password',placeholder:'הזן סיסמה...',dir:'ltr',
       style:{width:'100%',background:C.card,border:`1.5px solid ${C.border}`,borderRadius:'14px',padding:'14px 16px',fontSize:'22px',textAlign:'center',letterSpacing:'6px',outline:'none',color:C.text}});
-    const err=mkEl('div',{id:'pass-err',style:{color:C.red,fontSize:'14px',fontWeight:600,display:'none'}},'סיסמה שגויה!');
-    const tryPw=()=>{
-      if(pinp.value===activeAlarm.password)dismissAlarm();
-      else{err.style.display='block';pinp.value='';shake();setTimeout(()=>err.style.display='none',1500);}
+    const err=el('div',{id:'pe',style:{color:C.red,fontSize:'14px',fontWeight:600,display:'none'}},'סיסמה שגויה!');
+    const tryIt=()=>{
+      if(checkFn(pinp.value))dismissAlarm();
+      else{err.style.display='block';pinp.value='';doShake();setTimeout(()=>err.style.display='none',1500);}
     };
-    pinp.addEventListener('keydown',e=>e.key==='Enter'&&tryPw());
+    pinp.addEventListener('keydown',e=>e.key==='Enter'&&tryIt());
     pw.append(pinp,err,
-      mkEl('button',{style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'14px 40px',fontSize:'17px',fontWeight:700,cursor:'pointer'},onclick:tryPw},'אשר'),
-      mkEl('button',{style:{background:'none',border:'none',color:C.muted,fontSize:'14px',cursor:'pointer'},onclick:()=>{dismissMode=null;render();}},'← חזור')
+      btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'14px 40px',fontSize:'17px',fontWeight:700,cursor:'pointer'},onclick:tryIt},'אשר'),
+      btn({style:{background:'none',border:'none',color:C.muted,fontSize:'14px',cursor:'pointer'},onclick:backFn},'← חזור')
     );
-    content.append(pw);
+    return pw;
+  }
+
+  if(dismissMode==='password'){
+    content.append(buildPwMode('pi',v=>v===activeAlarm.password,()=>{dismissMode=null;render();}));
+  }
+  if(dismissMode==='master'){
+    content.append(buildPwMode('mi',v=>settings.masterPassword&&v===settings.masterPassword,()=>{dismissMode=null;render();}));
   }
 
   wrap.append(content);return wrap;
 }
 
-function dismissBtn(icon,label,fn){
-  return mkEl('button',{
-    style:{flex:'1',minWidth:'100px',maxWidth:'140px',background:C.card,border:`1.5px solid ${C.amber}`,borderRadius:'16px',
-      padding:'16px 10px',color:C.amber,fontSize:'14px',fontWeight:700,cursor:'pointer',
-      display:'flex',flexDirection:'column',alignItems:'center',gap:'8px'},
-    onclick:fn
-  },mkEl('span',{style:{fontSize:'26px'}},icon),label);
+function dBtn(icon,label,fn){
+  return btn({style:{flex:'1',minWidth:'100px',maxWidth:'140px',background:C.card,border:`1.5px solid ${C.amber}`,borderRadius:'16px',padding:'16px 10px',color:C.amber,fontSize:'14px',fontWeight:700,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:'8px'},onclick:fn},
+    el('span',{style:{fontSize:'26px'}},icon),label);
 }
 
-// ── HOME SCREEN ────────────────────────────────────────────
-function buildHome(){
+// ══ ALARMS TAB ══════════════════════════════════════════════════════
+function buildAlarmsTab(){
   const now=new Date();
   const ts=pad(now.getHours())+':'+pad(now.getMinutes()),ss=pad(now.getSeconds());
   const ds=now.toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'});
-  const wrap=div({style:{minHeight:'100vh',background:C.bg,display:'flex',flexDirection:'column',maxWidth:'430px',margin:'0 auto',paddingBottom:'40px',direction:'rtl'}});
+  const wrap=div({style:{minHeight:'100vh',background:C.bg,direction:'rtl'}});
 
-  const clockWrap=div({style:{textAlign:'center',padding:'48px 24px 32px',background:`linear-gradient(180deg,${C.surface} 0%,${C.bg} 100%)`,borderBottom:`1px solid ${C.border}`}});
-  const timeEl=mkEl('div',{id:'clock-time',style:{fontSize:'72px',fontWeight:200,letterSpacing:'-4px',lineHeight:1,fontVariantNumeric:'tabular-nums'}});
-  timeEl.append(document.createTextNode(ts));
-  timeEl.append(mkEl('span',{id:'clock-sec',style:{fontSize:'28px',fontWeight:400,color:C.amber,marginRight:'4px',letterSpacing:0}},ss));
-  clockWrap.append(timeEl,mkEl('div',{style:{marginTop:'8px',fontSize:'15px',color:C.muted}},ds));
-  wrap.append(clockWrap);
+  const cw=div({style:{textAlign:'center',padding:'40px 24px 28px',background:`linear-gradient(180deg,${C.surface} 0%,${C.bg} 100%)`,borderBottom:`1px solid ${C.border}`}});
+  const te=el('div',{id:'ct',style:{fontSize:'72px',fontWeight:200,letterSpacing:'-4px',lineHeight:1,fontVariantNumeric:'tabular-nums'}});
+  te.append(document.createTextNode(ts));
+  te.append(el('span',{id:'cs',style:{fontSize:'28px',fontWeight:400,color:C.amber,marginRight:'4px',letterSpacing:0}},ss));
+  cw.append(te,el('div',{style:{marginTop:'8px',fontSize:'15px',color:C.muted}},ds));
+  wrap.append(cw);
 
   const sec=div({style:{padding:'24px 16px 0'}});
   const hdr=div({style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}});
-  hdr.append(
-    mkEl('span',{style:{fontSize:'18px',fontWeight:600}},'שעוני מעורר'),
-    mkEl('button',{style:{background:C.amber,color:'#000',border:'none',borderRadius:'20px',padding:'8px 18px',fontSize:'14px',fontWeight:700,cursor:'pointer'},
-      onclick:()=>{showAdd=true;newBarcode='';newObjectLabel='';render();}},'+ הוסף')
-  );
+  hdr.append(el('span',{style:{fontSize:'18px',fontWeight:600}},'שעוני מעורר'),
+    btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'20px',padding:'8px 18px',fontSize:'14px',fontWeight:700,cursor:'pointer'},
+      onclick:()=>{showAdd=true;render();}},'+ הוסף'));
   sec.append(hdr);
 
   if(!alarms.length){
     sec.append(div({style:{textAlign:'center',padding:'60px 20px',color:C.muted,fontSize:'15px'}},
-      mkEl('div',{style:{fontSize:'40px',marginBottom:'8px'}},'⏰'),
-      mkEl('div',{},'אין שעוני מעורר'),
-      mkEl('div',{style:{fontSize:'13px',marginTop:'4px'}},'לחץ "+ הוסף" כדי להתחיל')
-    ));
+      el('div',{style:{fontSize:'40px',marginBottom:'8px'}},'⏰'),
+      el('div',{},'אין שעוני מעורר'),
+      el('div',{style:{fontSize:'13px',marginTop:'4px'}},'לחץ "+ הוסף" כדי להתחיל')));
   }
 
   alarms.forEach(a=>{
     const rt=RINGTONES.find(r=>r.id===a.ringtone)||RINGTONES[0];
+    const obj=a.objId?objLib.find(o=>o.id===a.objId):null;
     const card=div({style:{background:C.card,borderRadius:'16px',padding:'16px 20px',marginBottom:'12px',display:'flex',justifyContent:'space-between',alignItems:'center',border:`1px solid ${C.border}`,opacity:a.enabled?1:.5}});
     const left=div({style:{flex:1}});
-    const bdg=div({style:{display:'flex',gap:'6px',marginTop:'4px',flexWrap:'wrap'}});
-    if(a.barcode)bdg.append(badge('📷 ברקוד'));
-    if(a.objectLabel)bdg.append(badge('🔍 '+a.objectLabel));
-    if(a.password)bdg.append(badge('🔑 סיסמה'));
-    bdg.append(badge(rt.name.split(' ')[0]+' '+rt.name.split(' ').slice(1).join(' ')));
-    left.append(
-      mkEl('div',{style:{fontSize:'36px',fontWeight:300,letterSpacing:'-1px',fontVariantNumeric:'tabular-nums'}},a.time),
-      mkEl('div',{style:{fontSize:'13px',color:C.muted,marginTop:'4px'}},a.label),bdg
-    );
+    const bdg=div({style:{display:'flex',gap:'6px',marginTop:'5px',flexWrap:'wrap'}});
+    if(a.barcode)bdg.append(chip('📷 ברקוד'));
+    if(obj)bdg.append(chip('📸 '+obj.name));
+    if(a.password)bdg.append(chip('🔑 סיסמה'));
+    bdg.append(chip(rt.name));
+    left.append(el('div',{style:{fontSize:'36px',fontWeight:300,letterSpacing:'-1px',fontVariantNumeric:'tabular-nums'}},a.time),
+      el('div',{style:{fontSize:'13px',color:C.muted,marginTop:'3px'}},a.label),bdg);
     const right=div({style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'10px'}});
     right.append(
-      mkEl('button',{style:{width:'44px',height:'24px',borderRadius:'12px',border:'none',cursor:'pointer',background:a.enabled?C.amber:C.dimmer,transition:'background .2s'},
-        onclick:()=>{alarms=alarms.map(x=>x.id===a.id?{...x,enabled:!x.enabled}:x);save();render();}}),
-      mkEl('button',{style:{background:'none',border:'none',fontSize:'16px',cursor:'pointer',opacity:.5,padding:0},
-        onclick:()=>{alarms=alarms.filter(x=>x.id!==a.id);save();render();}},'🗑')
+      btn({style:{width:'44px',height:'24px',borderRadius:'12px',border:'none',cursor:'pointer',background:a.enabled?C.amber:C.dimmer,transition:'background .2s'},
+        onclick:()=>{alarms=alarms.map(x=>x.id===a.id?{...x,enabled:!x.enabled}:x);saveAlarms();render();}}),
+      btn({style:{background:'none',border:'none',fontSize:'16px',cursor:'pointer',opacity:.5,padding:0},
+        onclick:()=>{alarms=alarms.filter(x=>x.id!==a.id);saveAlarms();render();}},'🗑')
     );
     card.append(left,right);sec.append(card);
   });
@@ -595,136 +509,185 @@ function buildHome(){
   return wrap;
 }
 
-function badge(txt){return mkEl('span',{style:{fontSize:'11px',background:C.surface,border:`1px solid ${C.border}`,borderRadius:'8px',padding:'2px 8px',color:C.muted}},txt);}
+function chip(t){return el('span',{style:{fontSize:'11px',background:C.surface,border:`1px solid ${C.border}`,borderRadius:'8px',padding:'2px 8px',color:C.muted}},t);}
 
-// ── ADD MODAL ──────────────────────────────────────────────
+// ══ ADD ALARM MODAL ═════════════════════════════════════════════════
 function buildAddModal(){
-  let localBarcode=newBarcode;
-  let localObject=newObjectLabel;
-  let localRingtone='classic';
+  let localBarcode='',localObjId='',localRt='classic';
 
   const overlay=div({style:{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',display:'flex',alignItems:'flex-end',zIndex:200},
-    onclick:()=>{showAdd=false;newBarcode='';newObjectLabel='';closeScanner();closeDetect();render();}});
-
+    onclick:()=>{showAdd=false;closeScanner();render();}});
   const modal=div({style:{background:C.surface,borderRadius:'24px 24px 0 0',padding:'28px 20px 48px',width:'100%',maxHeight:'92vh',overflowY:'auto',direction:'rtl'},
     onclick:e=>e.stopPropagation()});
 
-  modal.append(mkEl('div',{style:{fontSize:'20px',fontWeight:700,marginBottom:'20px',textAlign:'center'}},'שעון מעורר חדש'));
+  modal.append(el('div',{style:{fontSize:'20px',fontWeight:700,marginBottom:'20px',textAlign:'center'}},'שעון מעורר חדש'));
 
-  const timeInp=inp('time',pad(new Date().getHours())+':'+pad(new Date().getMinutes()),'ltr');
-  const labelInp=inp('text','','rtl','למשל: קום לעבודה');
-  const passInp=inp('password','','ltr','הזן סיסמה...');
+  const tInp=inp('time',pad(new Date().getHours())+':'+pad(new Date().getMinutes()),'ltr');
+  const lInp=inp('text','','rtl','למשל: קום לעבודה');
+  const pInp=inp('password','','ltr','הזן סיסמה...');
+  modal.append(lbl('שעה'),tInp,lbl('תווית (אופציונלי)'),lInp);
 
-  modal.append(lbl('שעה'),timeInp,lbl('תווית (אופציונלי)'),labelInp);
-
-  // ── Ringtone picker ──────────────────────────────────────
+  // ringtone
   modal.append(lbl('🎵 רינגטון'));
-  const chipsWrap=div({className:'rt-chips'});
+  const chips=div({cls:'rt-chips'});
   RINGTONES.forEach(rt=>{
-    const chip=mkEl('button',{className:'rt-chip'+(rt.id==='classic'?' selected':''),
-      onclick:()=>{
-        localRingtone=rt.id;
-        chipsWrap.querySelectorAll('.rt-chip').forEach(c=>c.classList.remove('selected'));
-        chip.classList.add('selected');
-        // preview
-        try{const ctx=getCtx();const vol=rt.id==='gentle'?0.5:1;rt.play(ctx,ctx.currentTime,vol);}catch(e){}
-      }
-    },rt.name,mkEl('span',{style:{display:'block',fontSize:'11px',color:C.muted,marginTop:'2px',fontWeight:400}},rt.desc));
-    chipsWrap.append(chip);
+    const c=btn({cls:'rt-chip'+(rt.id==='classic'?' sel':''),onclick:()=>{
+      localRt=rt.id;chips.querySelectorAll('.rt-chip').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');
+      try{const ctx=getCtx();rt.play(ctx,ctx.currentTime,rt.id==='gentle'?.5:1);}catch(e){}
+    }},rt.name,el('span',{style:{display:'block',fontSize:'11px',color:C.muted,marginTop:'2px',fontWeight:400}},rt.desc));
+    chips.append(c);
   });
-  modal.append(chipsWrap);
+  modal.append(chips);
 
-  // ── Dismiss method ───────────────────────────────────────
   modal.append(div({style:{margin:'20px 0 4px',borderTop:`1px solid ${C.border}`,paddingTop:'16px'}},
-    mkEl('span',{style:{fontSize:'13px',color:C.amber,fontWeight:600}},'שיטת כיבוי (חובה לפחות אחת)')));
+    el('span',{style:{fontSize:'13px',color:C.amber,fontWeight:600}},'שיטת כיבוי (חובה לפחות אחת)')));
 
-  modal.append(lbl('🔑 סיסמה לכיבוי'),passInp);
+  modal.append(lbl('🔑 סיסמה לכיבוי'),pInp);
 
-  // Barcode
+  // barcode
   modal.append(lbl('📷 ברקוד לכיבוי'));
-  const barcodeSection=div({});
-  modal.append(barcodeSection);
-  function renderBarcodeSection(){
-    barcodeSection.innerHTML='';
+  const bSec=div({});modal.append(bSec);
+  function renderBSec(){
+    bSec.innerHTML='';
     if(localBarcode){
-      barcodeSection.append(div({style:{background:C.card,borderRadius:'12px',padding:'12px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',border:`1px solid ${C.green}`,color:C.green,fontSize:'14px',fontWeight:600}},
+      bSec.append(div({style:{background:C.card,borderRadius:'12px',padding:'12px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',border:`1px solid ${C.green}`,color:C.green,fontSize:'14px',fontWeight:600}},
         '✅ ברקוד נסרק!',
-        mkEl('button',{style:{background:'none',border:`1px solid ${C.dimmer}`,borderRadius:'8px',padding:'4px 10px',color:C.muted,fontSize:'12px',cursor:'pointer'},
-          onclick:()=>{localBarcode='';renderBarcodeSection();}},'סרוק שוב')
-      ));
+        btn({style:{background:'none',border:`1px solid ${C.dimmer}`,borderRadius:'8px',padding:'4px 10px',color:C.muted,fontSize:'12px',cursor:'pointer'},onclick:()=>{localBarcode='';renderBSec();}},'מחק')));
     }else{
-      barcodeSection.append(mkEl('button',{
-        style:{width:'100%',background:C.card,border:`1.5px dashed ${C.amberDim}`,borderRadius:'12px',padding:'14px',color:C.amber,fontSize:'15px',fontWeight:600,cursor:'pointer',textAlign:'center'},
-        onclick:()=>openScanner(val=>{localBarcode=val;newBarcode=val;renderBarcodeSection();},'סרוק ברקוד להגדרת כיבוי')
-      },'📷 סרוק ברקוד'));
+      bSec.append(btn({style:{width:'100%',background:C.card,border:`1.5px dashed ${C.amberDim}`,borderRadius:'12px',padding:'14px',color:C.amber,fontSize:'15px',fontWeight:600,cursor:'pointer',textAlign:'center'},
+        onclick:()=>openScanner(v=>{localBarcode=v;renderBSec();})},'📷 סרוק ברקוד'));
     }
   }
-  renderBarcodeSection();
+  renderBSec();
 
-  // Object detection
-  modal.append(lbl('🔍 זיהוי חפץ לכיבוי'));
-  const objectSection=div({});
-  modal.append(objectSection);
-  function renderObjectSection(){
-    objectSection.innerHTML='';
-    if(localObject){
-      objectSection.append(div({style:{background:C.card,borderRadius:'12px',padding:'12px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',border:`1px solid ${C.green}`,color:C.green,fontSize:'14px',fontWeight:600}},
-        '✅ '+localObject,
-        mkEl('button',{style:{background:'none',border:`1px solid ${C.dimmer}`,borderRadius:'8px',padding:'4px 10px',color:C.muted,fontSize:'12px',cursor:'pointer'},
-          onclick:()=>{localObject='';newObjectLabel='';renderObjectSection();}},'שנה')
-      ));
-    }else{
-      // Input + confirm
-      const row=div({style:{display:'flex',gap:'8px'}});
-      const objInp=mkEl('input',{type:'text',placeholder:'למשל: כוס קפה, ברז מקלחת...',dir:'rtl',
-        style:{flex:1,background:C.card,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'12px 14px',fontSize:'15px',outline:'none',color:C.text}});
-      const setBtn=mkEl('button',{
-        style:{background:C.green,color:'#000',border:'none',borderRadius:'12px',padding:'12px 16px',fontSize:'14px',fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'},
-        onclick:()=>{
-          const v=objInp.value.trim();
-          if(!v){objInp.focus();return;}
-          localObject=v;newObjectLabel=v;renderObjectSection();
-        }
-      },'✓ שמור');
-      row.append(objInp,setBtn);
-      objectSection.append(
-        row,
-        mkEl('div',{style:{fontSize:'12px',color:C.muted,marginTop:'6px'}},'💡 הזן שם חפץ שתצטרך לסרוק כדי לכבות — למשל "ברז מקלחת" או "מוצר חלב"')
-      );
+  // object from library
+  modal.append(lbl('📸 חפץ לכיבוי (מהספרייה)'));
+  const oSec=div({});modal.append(oSec);
+  function renderOSec(){
+    oSec.innerHTML='';
+    if(!objLib.length){
+      oSec.append(el('div',{style:{fontSize:'13px',color:C.muted,padding:'10px 0'}},'הספרייה ריקה — הוסף חפצים בטאב "ספריית חפצים"'));
+      return;
     }
+    const sel=el('select',{dir:'rtl',style:{width:'100%',background:C.card,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'12px 14px',fontSize:'15px',outline:'none',color:C.text}});
+    sel.append(el('option',{value:''},'— ללא —'));
+    objLib.forEach(o=>sel.append(el('option',{value:o.id},o.name)));
+    if(localObjId)sel.value=localObjId;
+    sel.onchange=()=>{localObjId=sel.value;};
+    oSec.append(sel);
   }
-  renderObjectSection();
+  renderOSec();
 
-  // Save / cancel
   const actions=div({style:{marginTop:'24px',display:'flex',flexDirection:'column',gap:'10px'}});
   actions.append(
-    mkEl('button',{
-      style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'15px',fontSize:'16px',fontWeight:700,cursor:'pointer',width:'100%'},
+    btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'15px',fontSize:'16px',fontWeight:700,cursor:'pointer',width:'100%'},
       onclick:()=>{
-        const t=timeInp.value,l=labelInp.value,p=passInp.value,b=localBarcode,o=localObject;
+        const t=tInp.value,l=lInp.value,p=pInp.value,b=localBarcode,o=localObjId;
         if(!t||(!p&&!b&&!o)){alert('חובה להגדיר לפחות שיטת כיבוי אחת');return;}
-        alarms.push({id:Date.now(),time:t,label:l||'שעון מעורר',password:p,barcode:b,objectLabel:o,ringtone:localRingtone,enabled:true});
-        save();showAdd=false;newBarcode='';newObjectLabel='';closeScanner();closeDetect();render();
-      }
-    },'שמור שעון מעורר'),
-    mkEl('button',{
-      style:{background:'none',border:`1px solid ${C.border}`,borderRadius:'14px',padding:'13px',fontSize:'15px',color:C.muted,cursor:'pointer',width:'100%'},
-      onclick:()=>{showAdd=false;newBarcode='';newObjectLabel='';closeScanner();closeDetect();render();}
-    },'ביטול')
+        alarms.push({id:Date.now(),time:t,label:l||'שעון מעורר',password:p,barcode:b,objId:o,ringtone:localRt,enabled:true});
+        saveAlarms();showAdd=false;closeScanner();render();
+      }},'שמור שעון מעורר'),
+    btn({style:{background:'none',border:`1px solid ${C.border}`,borderRadius:'14px',padding:'13px',fontSize:'15px',color:C.muted,cursor:'pointer',width:'100%'},
+      onclick:()=>{showAdd=false;closeScanner();render();}},'ביטול')
   );
-  modal.append(actions);
-  overlay.append(modal);
-  return overlay;
+  modal.append(actions);overlay.append(modal);return overlay;
 }
 
-// ── Clock tick ─────────────────────────────────────────────
+// ══ LIBRARY TAB ═════════════════════════════════════════════════════
+function buildLibraryTab(){
+  const wrap=div({style:{minHeight:'100vh',background:C.bg,direction:'rtl',padding:'28px 16px 0'}});
+  const hdr=div({style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'20px'}});
+  hdr.append(el('span',{style:{fontSize:'20px',fontWeight:700}},'ספריית חפצים'),
+    btn({style:{background:C.green,color:'#000',border:'none',borderRadius:'20px',padding:'8px 18px',fontSize:'14px',fontWeight:700,cursor:'pointer'},
+      onclick:addObjectFlow},'+ צלם חפץ'));
+  wrap.append(hdr);
+
+  if(!objLib.length){
+    wrap.append(div({style:{textAlign:'center',padding:'60px 20px',color:C.muted,fontSize:'15px'}},
+      el('div',{style:{fontSize:'40px',marginBottom:'8px'}},'🖼️'),
+      el('div',{},'הספרייה ריקה'),
+      el('div',{style:{fontSize:'13px',marginTop:'4px'}},'לחץ "+ צלם חפץ" להוסיף')));
+    return wrap;
+  }
+
+  objLib.forEach(obj=>{
+    const card=div({cls:'obj-card'});
+    const img=el('img',{cls:'obj-thumb',src:obj.dataUrl,alt:obj.name});
+    const name=el('div',{cls:'obj-name'},obj.name);
+    const del=btn({cls:'obj-del',onclick:()=>{
+      if(!confirm(`למחוק "${obj.name}"?`))return;
+      objLib=objLib.filter(o=>o.id!==obj.id);saveLib();
+      // remove from alarms too
+      alarms=alarms.map(a=>a.objId===obj.id?{...a,objId:''}:a);saveAlarms();
+      render();
+    }},'🗑');
+    card.append(img,name,del);wrap.append(card);
+  });
+  return wrap;
+}
+
+function addObjectFlow(){
+  const name=prompt('שם החפץ (למשל: כוס קפה, ברז מקלחת):');
+  if(!name||!name.trim())return;
+  openPhoto(`📸 צלם את: ${name.trim()}\nמקם את החפץ במרכז המסך`,dataUrl=>{
+    objLib.push({id:Date.now(),name:name.trim(),dataUrl});
+    saveLib();render();
+  });
+}
+
+// ══ SETTINGS TAB ════════════════════════════════════════════════════
+function buildSettingsTab(){
+  const wrap=div({style:{minHeight:'100vh',background:C.bg,direction:'rtl',padding:'28px 16px 0'}});
+  wrap.append(el('div',{style:{fontSize:'20px',fontWeight:700,marginBottom:'24px'}},'הגדרות'));
+
+  // master password section
+  const mpCard=div({style:{background:C.card,border:`1px solid ${C.border}`,borderRadius:'16px',padding:'20px'}});
+  mpCard.append(el('div',{style:{fontSize:'16px',fontWeight:600,marginBottom:'4px'}},'🔓 סיסמת מאסטר'),
+    el('div',{style:{fontSize:'13px',color:C.muted,marginBottom:'14px'}},'סיסמה שמכבה כל שעון מעורר, בלי קשר להגדרות שלו'));
+
+  const mpInp=el('input',{type:'password',placeholder:'הזן סיסמת מאסטר...',dir:'ltr',
+    style:{width:'100%',background:C.surface,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'12px 14px',fontSize:'16px',outline:'none',color:C.text,marginBottom:'10px'}});
+  mpInp.value=settings.masterPassword||'';
+
+  const mpStatus=el('div',{style:{fontSize:'13px',color:C.green,display:'none',marginBottom:'8px'}},'✅ נשמר!');
+
+  const mpSave=btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'12px',padding:'11px 24px',fontSize:'14px',fontWeight:700,cursor:'pointer'},
+    onclick:()=>{
+      settings.masterPassword=mpInp.value.trim();
+      saveSettings();
+      mpStatus.style.display='block';
+      setTimeout(()=>mpStatus.style.display='none',2000);
+    }},'שמור');
+
+  const mpClear=btn({style:{background:'none',border:`1px solid ${C.border}`,borderRadius:'12px',padding:'11px 24px',fontSize:'14px',color:C.muted,cursor:'pointer',marginRight:'8px'},
+    onclick:()=>{
+      mpInp.value='';settings.masterPassword='';saveSettings();
+      mpStatus.textContent='🗑 נמחקה';mpStatus.style.display='block';
+      setTimeout(()=>{mpStatus.style.display='none';mpStatus.textContent='✅ נשמר!';},2000);
+    }},'מחק סיסמה');
+
+  mpCard.append(mpInp,mpStatus,div({style:{display:'flex',gap:'8px'}},mpClear,mpSave));
+  wrap.append(mpCard);
+
+  // info
+  wrap.append(div({style:{marginTop:'24px',background:C.card,border:`1px solid ${C.border}`,borderRadius:'16px',padding:'20px'}},
+    el('div',{style:{fontSize:'16px',fontWeight:600,marginBottom:'8px'}},'ℹ️ אודות'),
+    el('div',{style:{fontSize:'13px',color:C.muted,lineHeight:1.7}},
+      '• שעוני מעורר נשמרים באחסון הדפדפן\n• ספריית החפצים שומרת תמונות ומשתמשת בהשוואה ויזואלית לזיהוי\n• סיסמת מאסטר מכבה כל שעון בחירום'
+    )
+  ));
+
+  return wrap;
+}
+
+// ══ clock tick ══════════════════════════════════════════════════════
 let lastSec=-1;
 setInterval(()=>{
   const now=new Date();const s=now.getSeconds();
   checkAlarms();
-  if(s!==lastSec&&screen==='home'){
+  if(s!==lastSec&&screen==='home'&&curTab==='alarms'){
     lastSec=s;
-    const ct=$('clock-time'),cs=$('clock-sec');
+    const ct=$('ct'),cs=$('cs');
     if(!ct){render();return;}
     ct.childNodes[0].textContent=pad(now.getHours())+':'+pad(now.getMinutes());
     cs.textContent=pad(s);
