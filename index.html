@@ -95,6 +95,21 @@ select option{background:#1E2230}
 <div id="pv-ov"><img id="pv-img" src="" alt=""><div id="pv-bar"><button id="pv-ok" style="background:#F5A623;color:#000">✓ שמור</button><button id="pv-retry" style="background:#2A2F42">↺ שוב</button></div></div>
 <div id="om-ov"><video id="om-vid" autoplay playsinline muted></video><div id="om-label"></div><button id="om-close">✕ סגור</button><div id="om-status"></div><div id="om-bar"><button id="om-shutter">📷</button></div></div>
 
+<!-- ROI selector: shown after capturing the reference photo, before saving to library -->
+<div id="roi-ov" style="display:none;position:fixed;inset:0;z-index:1100;background:#000;flex-direction:column;align-items:center;justify-content:flex-start">
+  <div id="roi-top" style="width:100%;background:rgba(0,0,0,.85);padding:16px 20px 12px;color:#fff;font-size:14px;font-weight:600;text-align:center;line-height:1.5">
+    🎯 סמן את האזור החשוב<br><span style="font-size:12px;font-weight:400;color:#aaa">גרור על החלק שרוצה שיוכר</span>
+  </div>
+  <div id="roi-wrap" style="position:relative;width:100%;flex:1;overflow:hidden;touch-action:none">
+    <img id="roi-img" style="width:100%;height:100%;object-fit:contain;display:block" src="" alt="">
+    <canvas id="roi-canvas" style="position:absolute;inset:0;width:100%;height:100%;touch-action:none"></canvas>
+  </div>
+  <div style="width:100%;background:rgba(0,0,0,.85);padding:16px;display:flex;gap:10px">
+    <button id="roi-cancel" style="flex:1;padding:13px;border-radius:12px;border:1px solid #444;background:none;color:#aaa;font-size:15px;cursor:pointer">ביטול</button>
+    <button id="roi-ok" style="flex:1;padding:13px;border-radius:12px;border:none;background:#F5A623;color:#000;font-size:15px;font-weight:700;cursor:pointer">✓ שמור</button>
+  </div>
+</div>
+
 <div id="root" style="padding-bottom:64px"></div>
 <div id="bnav">
   <button class="nb on" data-tab="alarms" onclick="switchTab('alarms')"><span class="ni">⏰</span>שעונים</button>
@@ -244,81 +259,201 @@ $('ph-shutter').onclick=()=>{
 
 // ══ image fingerprint (pHash + color histogram) ═════════════════════
 // Returns a fingerprint object from a dataUrl
-function computeFingerprint(dataUrl, cb) {
+// ══ Fingerprint engine (ROI-aware) ════════════════════════════════
+// Computes color histogram + avg color for a specific pixel region.
+// When a ROI is defined, only that crop is compared.
+
+function extractRegionFeatures(ctx, x, y, w, h) {
+  w = Math.max(1, Math.round(w));
+  h = Math.max(1, Math.round(h));
+  const data = ctx.getImageData(x, y, w, h).data;
+  const n = w * h;
+  const BINS = 32;
+  const hist = new Float32Array(BINS * 3).fill(0);
+  let rS=0, gS=0, bS=0;
+  for (let i = 0; i < n; i++) {
+    const r=data[i*4], g=data[i*4+1], b=data[i*4+2];
+    hist[Math.floor(r/256*BINS)]++;
+    hist[BINS   + Math.floor(g/256*BINS)]++;
+    hist[BINS*2 + Math.floor(b/256*BINS)]++;
+    rS+=r; gS+=g; bS+=b;
+  }
+  for (let i=0; i<hist.length; i++) hist[i] /= n;
+  return { hist, avgR:rS/n/255, avgG:gS/n/255, avgB:bS/n/255 };
+}
+
+function bhatt(h1, h2) { let s=0; for(let i=0;i<h1.length;i++) s+=Math.sqrt(h1[i]*h2[i]); return s; }
+function colorDist(z1, z2) { return Math.sqrt((z1.avgR-z2.avgR)**2+(z1.avgG-z2.avgG)**2+(z1.avgB-z2.avgB)**2); }
+
+// Compute fingerprint from a dataUrl.
+// roi = {x,y,w,h} as fractions 0..1 of image size (or null = whole image split into 5 zones)
+function computeFingerprint(dataUrl, roi, cb) {
   const img = new Image();
   img.onload = () => {
-    // ── 1. pHash via DCT on 32×32 grayscale ──────────────────────
-    const SZ = 32, KEEP = 8;
-    const cv = document.createElement('canvas');
-    cv.width = SZ; cv.height = SZ;
+    const SZ = 256;
+    const cv = document.createElement('canvas'); cv.width=SZ; cv.height=SZ;
     const ctx = cv.getContext('2d');
     ctx.drawImage(img, 0, 0, SZ, SZ);
-    const raw = ctx.getImageData(0, 0, SZ, SZ).data;
 
-    // grayscale
-    const gray = new Float32Array(SZ * SZ);
-    for (let i = 0; i < SZ * SZ; i++)
-      gray[i] = 0.299*raw[i*4] + 0.587*raw[i*4+1] + 0.114*raw[i*4+2];
-
-    // 2D DCT (naive but fine for 32×32)
-    const dct = new Float32Array(SZ * SZ);
-    for (let u = 0; u < SZ; u++) {
-      for (let v = 0; v < SZ; v++) {
-        let sum = 0;
-        for (let x = 0; x < SZ; x++)
-          for (let y = 0; y < SZ; y++)
-            sum += gray[x*SZ+y] * Math.cos((2*x+1)*u*Math.PI/(2*SZ)) * Math.cos((2*y+1)*v*Math.PI/(2*SZ));
-        dct[u*SZ+v] = sum;
+    let zones;
+    if (roi) {
+      // Single ROI zone — crop it, then split into 3x3 grid for more granularity
+      const rx=Math.round(roi.x*SZ), ry=Math.round(roi.y*SZ);
+      const rw=Math.max(10,Math.round(roi.w*SZ)), rh=Math.max(10,Math.round(roi.h*SZ));
+      const cols=3, rows=3;
+      zones = [];
+      const weights = [];
+      for (let r=0; r<rows; r++) for (let c=0; c<cols; c++) {
+        const zx=rx+Math.round(c*rw/cols), zy=ry+Math.round(r*rh/rows);
+        const zw=Math.round(rw/cols), zh=Math.round(rh/rows);
+        zones.push(extractRegionFeatures(ctx, zx, zy, zw, zh));
+        // Center cell of grid gets more weight
+        weights.push((r===1&&c===1) ? 0.3 : (r===1||c===1) ? 0.1 : 0.05);
       }
+      // normalize weights
+      const wsum=weights.reduce((a,b)=>a+b,0);
+      zones._weights = weights.map(w=>w/wsum);
+    } else {
+      // No ROI: 5-zone (center + quadrants)
+      const h2=SZ/2, w2=SZ/2;
+      zones = [
+        extractRegionFeatures(ctx, w2/2, h2/2, w2, h2),
+        extractRegionFeatures(ctx, 0,  0,  w2, h2),
+        extractRegionFeatures(ctx, w2, 0,  w2, h2),
+        extractRegionFeatures(ctx, 0,  h2, w2, h2),
+        extractRegionFeatures(ctx, w2, h2, w2, h2),
+      ];
+      zones._weights = [0.35, 0.165, 0.165, 0.165, 0.165];
     }
-
-    // top-left KEEP×KEEP (skip [0,0] DC)
-    const vals = [];
-    for (let u = 0; u < KEEP; u++)
-      for (let v = 0; v < KEEP; v++)
-        if (u+v > 0) vals.push(dct[u*SZ+v]);
-
-    const med = [...vals].sort((a,b)=>a-b)[Math.floor(vals.length/2)];
-    const phash = vals.map(v => v >= med ? 1 : 0);
-
-    // ── 2. Color histogram (8 bins per channel, normalized) ───────
-    const BINS = 8;
-    const hist = new Float32Array(BINS * 3).fill(0);
-    for (let i = 0; i < SZ*SZ; i++) {
-      hist[Math.floor(raw[i*4]   / 256 * BINS)]++;
-      hist[BINS   + Math.floor(raw[i*4+1] / 256 * BINS)]++;
-      hist[BINS*2 + Math.floor(raw[i*4+2] / 256 * BINS)]++;
-    }
-    const total = SZ*SZ;
-    for (let i = 0; i < hist.length; i++) hist[i] /= total;
-
-    // ── 3. Average brightness ─────────────────────────────────────
-    const avgBright = gray.reduce((a,b)=>a+b,0) / gray.length / 255;
-
-    cb({ phash, hist, avgBright });
+    cb({ zones, roi });
   };
   img.src = dataUrl;
 }
 
-function hammingDist(a, b) {
-  let d = 0; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++; return d;
-}
-function histSimilarity(h1, h2) {
-  // Bhattacharyya coefficient
-  let sum = 0; for (let i = 0; i < h1.length; i++) sum += Math.sqrt(h1[i] * h2[i]); return sum;
+function matchScore(fp1, fp2) {
+  if(!fp1||!fp2) return 0;
+  const w1 = fp1.zones._weights, w2 = fp2.zones._weights;
+  // Use fp1 weights (reference) — both should have same zone count if same roi mode
+  const n = Math.min(fp1.zones.length, fp2.zones.length);
+  let score = 0;
+  for (let i=0; i<n; i++) {
+    const z1=fp1.zones[i], z2=fp2.zones[i];
+    const hScore = bhatt(z1.hist, z2.hist);          // 0..1
+    const cScore = Math.max(0, 1-colorDist(z1,z2)/0.5); // 0..1, tighter color
+    score += (hScore*0.65 + cScore*0.35) * w1[i];
+  }
+  return score;
 }
 
-function isMatch(fp1, fp2) {
-  const hd = hammingDist(fp1.phash, fp2.phash);
-  const hs = histSimilarity(fp1.hist, fp2.hist);
-  const bd = Math.abs(fp1.avgBright - fp2.avgBright);
-  // Loosened: pHash ≤20 bits, histogram ≥0.70, brightness diff <0.25
-  // Two out of three must pass (handles lighting/angle variation)
-  const pHashOk = hd <= 20;
-  const colorOk = hs > 0.70;
-  const brightOk = bd < 0.25;
-  const passing = (pHashOk?1:0) + (colorOk?1:0) + (brightOk?1:0);
-  return passing >= 2;
+function isMatch(fp1, fp2) { return matchScore(fp1, fp2) > 0.78; }
+
+// ══ ROI selector ════════════════════════════════════════════════════
+let roiDataUrl='', roiCb=null, roiRect=null, roiDragging=false, roiStart={x:0,y:0};
+
+function openROISelector(dataUrl, cb) {
+  roiDataUrl=dataUrl; roiCb=cb; roiRect=null;
+  $('roi-img').src=dataUrl;
+  $('roi-ov').style.display='flex';
+
+  const canvas=$('roi-canvas');
+  const img=$('roi-img');
+
+  function getImgBounds() {
+    // object-fit:contain means image may have letterbox
+    const cr=img.getBoundingClientRect();
+    const natR=img.naturalWidth/img.naturalHeight;
+    const boxR=cr.width/cr.height;
+    let iw,ih,ix,iy;
+    if(natR>boxR){iw=cr.width;ih=cr.width/natR;ix=0;iy=(cr.height-ih)/2;}
+    else{ih=cr.height;iw=cr.height*natR;iy=0;ix=(cr.width-iw)/2;}
+    return {ix,iy,iw,ih};
+  }
+
+  function evPos(e) {
+    const r=canvas.getBoundingClientRect();
+    const t=e.touches?e.touches[0]:e;
+    return {x:t.clientX-r.left, y:t.clientY-r.top};
+  }
+
+  function draw() {
+    const {ix,iy,iw,ih}=getImgBounds();
+    canvas.width=canvas.offsetWidth; canvas.height=canvas.offsetHeight;
+    const ctx=canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(roiRect){
+      const {x,y,w,h}=roiRect;
+      // dim outside
+      ctx.fillStyle='rgba(0,0,0,0.5)';
+      ctx.fillRect(ix,iy,iw,ih);
+      ctx.clearRect(x,y,w,h);
+      // border
+      ctx.strokeStyle='#F5A623';ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);
+      // corner handles
+      const hs=10;[[x,y],[x+w,y],[x,y+h],[x+w,y+h]].forEach(([hx,hy])=>{
+        ctx.fillStyle='#F5A623';ctx.fillRect(hx-hs/2,hy-hs/2,hs,hs);
+      });
+    } else {
+      // hint
+      ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fillRect(ix,iy,iw,ih);
+      ctx.fillStyle='rgba(255,255,255,0.7)';ctx.font='14px system-ui';ctx.textAlign='center';
+      ctx.fillText('גרור כדי לסמן אזור',canvas.width/2,canvas.height/2);
+    }
+  }
+
+  function onStart(e) {
+    e.preventDefault();
+    roiDragging=true; roiStart=evPos(e); roiRect=null; draw();
+  }
+  function onMove(e) {
+    e.preventDefault();
+    if(!roiDragging) return;
+    const p=evPos(e);
+    roiRect={x:Math.min(roiStart.x,p.x),y:Math.min(roiStart.y,p.y),
+              w:Math.abs(p.x-roiStart.x),h:Math.abs(p.y-roiStart.y)};
+    draw();
+  }
+  function onEnd(e) {
+    e.preventDefault();
+    roiDragging=false;
+    if(roiRect&&(roiRect.w<20||roiRect.h<20)){roiRect=null;}
+    draw();
+  }
+
+  canvas.addEventListener('mousedown',onStart);
+  canvas.addEventListener('mousemove',onMove);
+  canvas.addEventListener('mouseup',onEnd);
+  canvas.addEventListener('touchstart',onStart,{passive:false});
+  canvas.addEventListener('touchmove',onMove,{passive:false});
+  canvas.addEventListener('touchend',onEnd,{passive:false});
+
+  // Draw initially after image loads
+  img.onload=()=>{ setTimeout(draw,50); };
+  if(img.complete) setTimeout(draw,50);
+
+  $('roi-ok').onclick=()=>{
+    const {ix,iy,iw,ih}=getImgBounds();
+    const cw=canvas.offsetWidth, ch=canvas.offsetHeight;
+
+    // Convert canvas pixel ROI to fraction of actual image
+    let roi=null;
+    if(roiRect && roiRect.w>20 && roiRect.h>20){
+      roi={
+        x: Math.max(0,(roiRect.x-ix)/iw),
+        y: Math.max(0,(roiRect.y-iy)/ih),
+        w: Math.min(1,roiRect.w/iw),
+        h: Math.min(1,roiRect.h/ih),
+      };
+    }
+    $('roi-ov').style.display='none';
+    canvas.replaceWith(canvas.cloneNode(false)); // remove listeners
+    roiCb(roiDataUrl, roi);
+  };
+
+  $('roi-cancel').onclick=()=>{
+    $('roi-ov').style.display='none';
+    canvas.replaceWith(canvas.cloneNode(false));
+    roiCb=null;
+  };
 }
 
 // ══ object match ════════════════════════════════════════════════════
@@ -327,8 +462,7 @@ async function openObjectMatch(obj,cb){
   omName=obj.name;omCb=cb;
   $('om-label').textContent=`📸 צלם את: ${obj.name}`;
   $('om-status').style.display='none';$('om-ov').classList.add('on');
-  // Pre-compute fingerprint of saved image
-  computeFingerprint(obj.dataUrl, fp => { omTargetFp = fp; });
+  computeFingerprint(obj.dataUrl, obj.roi||null, fp => { omTargetFp = fp; });
   const vid=$('om-vid');
   try{
     const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
@@ -346,16 +480,16 @@ $('om-shutter').onclick=()=>{
   cv.getContext('2d').drawImage(vid,0,0,cv.width,cv.height);
   const dataUrl=cv.toDataURL('image/jpeg',.85);
 
-  computeFingerprint(dataUrl, fp => {
-    if(isMatch(omTargetFp, fp)){
+  // Use same ROI fractions on the new photo
+  computeFingerprint(dataUrl, omTargetFp.roi||null, fp => {
+    const score = matchScore(omTargetFp, fp);
+    if(score > 0.78){
       showOmSt('✅ זוהה!','#2EC069');
       setTimeout(()=>{const c=omCb;closeObjMatch();c();},700);
     } else {
-      // Show debug info to help user understand why it failed
-      const hd=hammingDist(omTargetFp.phash,fp.phash);
-      const hs=histSimilarity(omTargetFp.hist,fp.hist);
-      const score=Math.round(((pHashOk?33:0)+(colorOk?33:0)+(brightOk?34:0)));
-      showOmSt(`❌ דמיון ${score}% — נסה שוב (זווית/תאורה שונה?)`,'#E84855');
+      const pct = Math.round(score*100);
+      const tip = pct>60?'קרוב! נסה אותה זווית':'נסה מאותו מרחק וזווית';
+      showOmSt(`❌ דמיון ${pct}% — ${tip}`,'#E84855');
       setTimeout(()=>$('om-status').style.display='none',2500);
     }
   });
@@ -930,11 +1064,23 @@ function buildLibraryTab(){
   }
   objLib.forEach(obj=>{
     const card=div({cls:'obj-card'});
+    const imgWrap=div({style:{position:'relative',flexShrink:0}});
     const img=el('img',{cls:'obj-thumb',src:obj.dataUrl,alt:obj.name});
-    const name=el('div',{style:{flex:1,fontSize:'15px',fontWeight:500}},obj.name);
+    imgWrap.append(img);
+    if(obj.roi){
+      // Draw orange rect on thumbnail
+      const roiDiv=div({style:{position:'absolute',border:'2px solid #F5A623',borderRadius:'2px',
+        left:(obj.roi.x*100)+'%',top:(obj.roi.y*100)+'%',
+        width:(obj.roi.w*100)+'%',height:(obj.roi.h*100)+'%',pointerEvents:'none'}});
+      imgWrap.append(roiDiv);
+    }
+    const nameEl=el('div',{style:{flex:1}},
+      el('div',{style:{fontSize:'15px',fontWeight:500}},obj.name),
+      el('div',{style:{fontSize:'11px',color:C.muted,marginTop:'2px'}},obj.roi?'🎯 אזור מסומן':'📷 תמונה שלמה')
+    );
     const del=btn({style:{background:'none',border:`1px solid ${C.border}`,borderRadius:'8px',padding:'6px 10px',color:C.muted,fontSize:'12px',cursor:'pointer'},
       onclick:()=>{if(!confirm(`למחוק "${obj.name}"?`))return;objLib=objLib.filter(o=>o.id!==obj.id);saveLib();alarms=alarms.map(a=>a.objId===String(obj.id)?{...a,objId:''}:a);saveAlarms();render();}},'🗑');
-    card.append(img,name,del);wrap.append(card);
+    card.append(imgWrap,nameEl,del);wrap.append(card);
   });
   return wrap;
 }
@@ -948,7 +1094,13 @@ function addObjectFlow(){
     style:{width:'100%',background:C.card,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'13px 14px',fontSize:'16px',outline:'none',color:C.text,marginBottom:'14px'}});
   const go=btn({style:{width:'100%',background:C.green,color:'#000',border:'none',borderRadius:'12px',padding:'13px',fontSize:'16px',fontWeight:700,cursor:'pointer',marginBottom:'10px'},
     onclick:()=>{const name=ni.value.trim();if(!name){ni.style.borderColor=C.red;return;}document.body.removeChild(overlay);
-      openPhoto(`📸 צלם את: ${name}\nמקם את החפץ במרכז המסך`,dataUrl=>{objLib.push({id:Date.now(),name,dataUrl});saveLib();switchTab('library');});}},
+      openPhoto(`📸 צלם את: ${name}\nמקם את החפץ במרכז המסך`, dataUrl=>{
+        // After capture, open ROI selector
+        openROISelector(dataUrl, (finalUrl, roi)=>{
+          objLib.push({id:Date.now(), name, dataUrl:finalUrl, roi});
+          saveLib(); switchTab('library');
+        });
+      });}},
     'המשך לצילום →');
   const cancel=btn({style:{width:'100%',background:'none',border:`1px solid ${C.border}`,borderRadius:'12px',padding:'12px',fontSize:'15px',color:C.muted,cursor:'pointer'},onclick:()=>document.body.removeChild(overlay)},'ביטול');
   box.append(ni,go,cancel);overlay.onclick=e=>{if(e.target===overlay)document.body.removeChild(overlay);};
