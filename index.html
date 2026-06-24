@@ -342,6 +342,12 @@ $('om-close').onclick=closeObjMatch;
 let activeAlarm=null,screen='home',dismissMode=null,curTab='alarms',showAdd=false;
 let lastTrigKey='';
 
+// ── chain timer state ───────────────────────────────────────────
+// screen='timer' means we're counting down between alarms
+let timerAlarm=null;      // the NEXT alarm to trigger if timer expires
+let timerEndsAt=null;     // Date object when timer expires
+let timerInterval=null;   // setInterval handle for countdown
+
 function checkAlarms(){
   if(screen!=='home')return;
   const now=new Date();
@@ -351,15 +357,77 @@ function checkAlarms(){
   const a=alarms.find(a=>a.enabled&&a.time===ts);
   if(a){lastTrigKey=key;triggerAlarm(a);}
 }
+
 function triggerAlarm(a){
   activeAlarm=a;screen='dismiss';dismissMode=null;
   (window._startAlarm||startSound)(a.ringtone||'classic');startVib();render();
 }
+
+// Called when user successfully dismisses the CURRENT alarm.
+// If it has a chain, start the countdown; otherwise go home.
 function dismissAlarm(){
   (window._stopAlarm||stopSound)();stopVib();closeScanner();closeObjMatch();
   alarms=alarms.map(a=>a.id===activeAlarm.id?{...a,enabled:false}:a);
-  saveAlarms();activeAlarm=null;screen='home';dismissMode=null;render();
+  saveAlarms();
+
+  const chain=activeAlarm.chain; // {minutes, alarmId}
+  activeAlarm=null;dismissMode=null;
+
+  if(chain&&chain.alarmId&&chain.minutes>0){
+    const next=alarms.find(a=>String(a.id)===String(chain.alarmId));
+    if(next){
+      startChainTimer(next, chain.minutes);
+      return;
+    }
+  }
+  screen='home';render();
 }
+
+function startChainTimer(nextAlarm, minutes){
+  timerAlarm=nextAlarm;
+  timerEndsAt=new Date(Date.now()+minutes*60*1000);
+  screen='timer';
+  clearInterval(timerInterval);
+  timerInterval=setInterval(()=>{
+    const left=Math.ceil((timerEndsAt-Date.now())/1000);
+    if(left<=0){
+      clearInterval(timerInterval);
+      // Timer expired — fire the next alarm
+      alarms=alarms.map(a=>String(a.id)===String(timerAlarm.id)?{...a,enabled:true}:a);
+      saveAlarms();
+      triggerAlarm(timerAlarm);
+    } else {
+      // Just update the countdown display without full re-render
+      const el=$('timer-countdown');
+      if(el) el.textContent=fmtCountdown(left);
+    }
+  },500);
+  render();
+}
+
+function fmtCountdown(secs){
+  const m=Math.floor(secs/60),s=secs%60;
+  return pad(m)+':'+pad(s);
+}
+
+// Called when user completes the NEXT alarm's unlock during the timer screen
+function dismissTimerEarly(){
+  clearInterval(timerInterval);
+  const next=timerAlarm;
+  timerAlarm=null;timerEndsAt=null;
+
+  // Mark next alarm as done too
+  alarms=alarms.map(a=>String(a.id)===String(next.id)?{...a,enabled:false}:a);
+  saveAlarms();
+
+  // If THAT alarm also has a chain, recurse
+  if(next.chain&&next.chain.alarmId&&next.chain.minutes>0){
+    const nn=alarms.find(a=>String(a.id)===String(next.chain.alarmId));
+    if(nn){ startChainTimer(nn,next.chain.minutes); return; }
+  }
+  screen='home';timerAlarm=null;render();
+}
+
 function doShake(){const e=$('dc');if(!e)return;e.classList.remove('shake');void e.offsetWidth;e.classList.add('shake');}
 
 function switchTab(t){
@@ -372,9 +440,109 @@ function switchTab(t){
 function render(){
   $('root').innerHTML='';
   if(screen==='dismiss'){$('root').append(buildDismiss());return;}
+  if(screen==='timer'){$('root').append(buildTimerScreen());return;}
   if(curTab==='alarms')$('root').append(buildAlarmsTab());
   else if(curTab==='library')$('root').append(buildLibraryTab());
   else $('root').append(buildSettingsTab());
+}
+
+// ══ TIMER SCREEN ═══════════════════════════════════════════════════
+function buildTimerScreen(){
+  const secsLeft=Math.max(0,Math.ceil((timerEndsAt-Date.now())/1000));
+  const wrap=div({style:{position:'fixed',inset:0,background:C.bg,display:'flex',flexDirection:'column',
+    alignItems:'center',justifyContent:'center',direction:'rtl',padding:'24px'}});
+
+  wrap.append(div({style:{position:'absolute',inset:0,
+    background:`radial-gradient(ellipse at 50% 40%,#1a3a2a 0%,transparent 70%)`,
+    pointerEvents:'none'}}));
+
+  const content=div({style:{position:'relative',display:'flex',flexDirection:'column',
+    alignItems:'center',gap:'16px',width:'100%',maxWidth:'380px'}});
+
+  content.append(
+    el('div',{style:{fontSize:'48px'}},'⏱️'),
+    el('div',{style:{fontSize:'18px',fontWeight:600,color:C.text,textAlign:'center'}},
+      timerAlarm ? `יש לך זמן לבצע משימה לפני: ${timerAlarm.label}` : 'טיימר פעיל'),
+    el('div',{id:'timer-countdown',style:{fontSize:'72px',fontWeight:200,color:C.green,
+      letterSpacing:'-3px',fontVariantNumeric:'tabular-nums',lineHeight:1}},
+      fmtCountdown(secsLeft)),
+    el('div',{style:{fontSize:'14px',color:C.muted,textAlign:'center'}},
+      'השעון הבא יפעל אוטומטית כשהטיימר יסתיים')
+  );
+
+  // Early dismiss buttons — same unlock methods as next alarm
+  if(timerAlarm){
+    const hint=el('div',{style:{fontSize:'13px',color:C.amber,fontWeight:600,
+      marginTop:'8px',textAlign:'center'}},'סיים כבר? אמת את השעון הבא מוקדם:');
+    content.append(hint);
+
+    const btns=div({style:{display:'flex',gap:'10px',width:'100%',flexWrap:'wrap',justifyContent:'center',marginTop:'4px'}});
+
+    if(timerAlarm.barcode){
+      btns.append(dBtn('📷','סרוק ברקוד',()=>{
+        openScanner(val=>{
+          if(val===timerAlarm.barcode) dismissTimerEarly();
+          else { doShake(); }
+        });
+      }));
+    }
+    if(timerAlarm.objId){
+      const obj=objLib.find(o=>String(o.id)===String(timerAlarm.objId));
+      if(obj){
+        btns.append(dBtn('📸','צלם חפץ',()=>{
+          openObjectMatch(obj,()=>dismissTimerEarly());
+        }));
+      }
+    }
+    if(timerAlarm.password){
+      btns.append(dBtn('🔑','הזן סיסמה',()=>{
+        // show inline password field
+        btns.style.display='none';
+        const pw=div({style:{width:'100%',display:'flex',flexDirection:'column',gap:'10px',alignItems:'center',marginTop:'8px'}});
+        const pinp=el('input',{type:'password',placeholder:'סיסמה של השעון הבא...',dir:'ltr',
+          style:{width:'100%',background:C.card,border:`1.5px solid ${C.border}`,borderRadius:'14px',
+            padding:'14px 16px',fontSize:'20px',textAlign:'center',letterSpacing:'6px',outline:'none',color:C.text}});
+        const tryIt=()=>{
+          if(pinp.value===timerAlarm.password) dismissTimerEarly();
+          else{pinp.value='';pinp.style.borderColor=C.red;setTimeout(()=>pinp.style.borderColor=C.border,1200);}
+        };
+        pinp.addEventListener('keydown',e=>e.key==='Enter'&&tryIt());
+        pw.append(pinp,
+          btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',
+            padding:'12px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'},onclick:tryIt},'אשר'),
+          btn({style:{background:'none',border:'none',color:C.muted,fontSize:'13px',cursor:'pointer'},
+            onclick:()=>{btns.style.display='flex';content.removeChild(pw);}},'← חזור')
+        );
+        content.append(pw);
+        setTimeout(()=>pinp.focus(),80);
+      }));
+    }
+    // master password always
+    btns.append(dBtn('🔓','סיסמת מאסטר',()=>{
+      btns.style.display='none';
+      const pw=div({style:{width:'100%',display:'flex',flexDirection:'column',gap:'10px',alignItems:'center',marginTop:'8px'}});
+      const pinp=el('input',{type:'password',placeholder:'סיסמת מאסטר...',dir:'ltr',
+        style:{width:'100%',background:C.card,border:`1.5px solid ${C.border}`,borderRadius:'14px',
+          padding:'14px 16px',fontSize:'20px',textAlign:'center',letterSpacing:'6px',outline:'none',color:C.text}});
+      const tryIt=()=>{
+        if(settings.masterPassword&&pinp.value===settings.masterPassword){clearInterval(timerInterval);screen='home';timerAlarm=null;render();}
+        else{pinp.value='';pinp.style.borderColor=C.red;setTimeout(()=>pinp.style.borderColor=C.border,1200);}
+      };
+      pinp.addEventListener('keydown',e=>e.key==='Enter'&&tryIt());
+      pw.append(pinp,
+        btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',
+          padding:'12px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'},onclick:tryIt},'אשר'),
+        btn({style:{background:'none',border:'none',color:C.muted,fontSize:'13px',cursor:'pointer'},
+          onclick:()=>{btns.style.display='flex';content.removeChild(pw);}},'← חזור')
+      );
+      content.append(pw);
+      setTimeout(()=>pinp.focus(),80);
+    }));
+
+    content.append(btns);
+  }
+
+  wrap.append(content);return wrap;
 }
 
 // ══ DISMISS ════════════════════════════════════════════════════════
@@ -511,6 +679,10 @@ function buildAlarmsTab(){
     if(obj)bdg.append(chip('📸 '+obj.name));
     if(a.password)bdg.append(chip('🔑 סיסמה'));
     bdg.append(chip(rt.name));
+    if(a.chain&&a.chain.alarmId){
+      const nxt=alarms.find(x=>String(x.id)===String(a.chain.alarmId));
+      if(nxt)bdg.append(chip('⛓️ '+a.chain.minutes+'דק → '+nxt.label));
+    }
     left.append(el('div',{style:{fontSize:'36px',fontWeight:300,letterSpacing:'-1px',fontVariantNumeric:'tabular-nums'}},a.time),
       el('div',{style:{fontSize:'13px',color:C.muted,marginTop:'3px'}},a.label),bdg);
     const right=div({style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'10px'}});
@@ -605,13 +777,53 @@ function buildAddModal(){
   }
   renderOSec();
 
+  // ── chain config ──────────────────────────────────────────────────
+  modal.append(div({style:{margin:'20px 0 4px',borderTop:`1px solid ${C.border}`,paddingTop:'16px'}},
+    el('span',{style:{fontSize:'13px',color:'#6B7EAF',fontWeight:600}},'⛓️ שרשרת — המשך לשעון הבא (אופציונלי)')));
+
+  let localChainId='', localChainMin=10;
+  const chainSec=div({});modal.append(chainSec);
+  function renderChainSec(){
+    chainSec.innerHTML='';
+    const chainAlarms=alarms; // all alarms can be chained to
+    if(!chainAlarms.length){
+      chainSec.append(el('div',{style:{fontSize:'13px',color:C.muted,padding:'8px 0'}},'אין שעוני מעורר אחרים — הוסף קודם שעון נוסף'));
+      return;
+    }
+    const row=div({style:{display:'flex',gap:'8px',alignItems:'center'}});
+    const chainSel=el('select',{dir:'rtl',style:{flex:1,background:C.card,border:`1px solid ${C.border}`,
+      borderRadius:'12px',padding:'10px 12px',fontSize:'14px',outline:'none',color:C.text}});
+    chainSel.append(el('option',{value:''},'— ללא שרשרת —'));
+    chainAlarms.forEach(a=>chainSel.append(el('option',{value:String(a.id)},a.time+' — '+a.label)));
+    chainSel.value=localChainId;
+    chainSel.onchange=()=>{ localChainId=chainSel.value; renderMinRow(); };
+    row.append(chainSel);
+    chainSec.append(row);
+
+    const minRow=div({id:'chain-min-row',style:{display:localChainId?'flex':'none',gap:'8px',alignItems:'center',marginTop:'8px'}});
+    const minInp=el('input',{type:'number',min:'1',max:'240',dir:'ltr',
+      style:{width:'80px',background:C.card,border:`1px solid ${C.border}`,borderRadius:'10px',
+        padding:'9px 12px',fontSize:'15px',outline:'none',color:C.text,textAlign:'center'}});
+    minInp.value=localChainMin;
+    minInp.oninput=()=>localChainMin=parseInt(minInp.value)||10;
+    minRow.append(el('span',{style:{fontSize:'14px',color:C.muted}},'טיימר:'),minInp,el('span',{style:{fontSize:'14px',color:C.muted}},'דקות'));
+    minRow.append(el('div',{style:{fontSize:'12px',color:C.muted,marginTop:'4px',width:'100%'}},
+      '💡 אם תסרוק את החפץ של השעון הבא בזמן הטיימר — הוא יתבטל מראש'));
+    chainSec.append(minRow);
+
+    function renderMinRow(){ minRow.style.display=localChainId?'flex':'none'; }
+    chainSel.onchange=()=>{ localChainId=chainSel.value; renderMinRow(); };
+  }
+  renderChainSec();
+
   const actions=div({style:{marginTop:'24px',display:'flex',flexDirection:'column',gap:'10px'}});
   actions.append(
     btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'15px',fontSize:'16px',fontWeight:700,cursor:'pointer',width:'100%'},
       onclick:()=>{
         const t=tInp.value,l=lInp.value,p=pInp.value,b=localBarcode,o=localObjId;
         if(!t||(!p&&!b&&!o)){alert('חובה להגדיר לפחות שיטת כיבוי אחת');return;}
-        alarms.push({id:Date.now(),time:t,label:l||'שעון מעורר',password:p,barcode:b,objId:String(o||''),ringtone:localRt,enabled:true});
+        const chain=localChainId?{alarmId:localChainId,minutes:localChainMin}:null;
+        alarms.push({id:Date.now(),time:t,label:l||'שעון מעורר',password:p,barcode:b,objId:String(o||''),ringtone:localRt,chain,enabled:true});
         saveAlarms();showAdd=false;closeScanner();render();
       }},'שמור שעון מעורר'),
     btn({style:{background:'none',border:`1px solid ${C.border}`,borderRadius:'14px',padding:'13px',fontSize:'15px',color:C.muted,cursor:'pointer',width:'100%'},
