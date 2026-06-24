@@ -157,7 +157,13 @@ let objLib   = load('objLib',[]); // [{id,name,dataUrl}]
 let settings = load('settings',{masterPassword:'',ringtone:'classic'});
 
 const saveAlarms=()=>save('alarms',alarms);
-const saveLib=()=>save('objLib',objLib);
+const saveLib=()=>{
+  try{ localStorage.setItem('objLib',JSON.stringify(objLib)); }
+  catch(e){
+    // QuotaExceededError — images too large, store without dataUrl as fallback notice
+    alert('אחסון מלא! נסה למחוק חפצים ישנים מהספרייה.');
+  }
+};
 const saveSettings=()=>save('settings',settings);
 
 // ══ ringtones ══════════════════════════════════════════════════════
@@ -236,10 +242,14 @@ async function openPhoto(labelText, cb){
 }
 function capturePhoto(){
   const vid=$('ph-vid');
+  // Resize to max 640px wide to keep localStorage size manageable
+  const MAX=640;
+  const scale=Math.min(1,MAX/vid.videoWidth);
   const cv=document.createElement('canvas');
-  cv.width=vid.videoWidth;cv.height=vid.videoHeight;
-  cv.getContext('2d').drawImage(vid,0,0);
-  return cv.toDataURL('image/jpeg',.85);
+  cv.width=Math.round(vid.videoWidth*scale);
+  cv.height=Math.round(vid.videoHeight*scale);
+  cv.getContext('2d').drawImage(vid,0,0,cv.width,cv.height);
+  return cv.toDataURL('image/jpeg',.75);
 }
 function closePhoto(){
   if(phStream){phStream.getTracks().forEach(t=>t.stop());phStream=null;}
@@ -248,12 +258,20 @@ function closePhoto(){
 $('ph-close').onclick=closePhoto;
 $('ph-shutter').onclick=()=>{
   const dataUrl=capturePhoto();
+  // Save callback & label BEFORE closePhoto() nulls them
+  const savedCb=phCb, savedLabel=phLabel;
   closePhoto();
   // show preview
   $('pv-img').src=dataUrl;
   $('pv-ov').classList.add('on');
-  $('pv-ok').onclick=()=>{$('pv-ov').classList.remove('on');if(phCb)phCb(dataUrl);};
-  $('pv-retry').onclick=()=>{$('pv-ov').classList.remove('on');openPhoto(phLabel,phCb);};
+  $('pv-ok').onclick=()=>{
+    $('pv-ov').classList.remove('on');
+    if(savedCb) savedCb(dataUrl);
+  };
+  $('pv-retry').onclick=()=>{
+    $('pv-ov').classList.remove('on');
+    openPhoto(savedLabel, savedCb);
+  };
 };
 
 // ══ image similarity (pixel-based) ════════════════════════════════
