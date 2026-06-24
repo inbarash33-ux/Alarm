@@ -11,9 +11,11 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:#0D0F14;color:#E8EAF0;font-family:system-ui,-apple-system,sans-serif}
-button,input{font-family:inherit;color:#E8EAF0}
+button,input,select{font-family:inherit;color:#E8EAF0}
 input::placeholder{color:#6B7280}
 input[type=time]::-webkit-calendar-picker-indicator{filter:invert(1)}
+input[type=number]::-webkit-inner-spin-button{opacity:1}
+select option{background:#1E2230}
 
 @keyframes pulse{from{opacity:.1}to{opacity:.3}}
 @keyframes ringBell{0%,100%{transform:rotate(-15deg)}50%{transform:rotate(15deg)}}
@@ -21,17 +23,14 @@ input[type=time]::-webkit-calendar-picker-indicator{filter:invert(1)}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .ring{display:inline-block;animation:ringBell .45s ease-in-out infinite}
 .shake{animation:shake .4s ease-in-out}
-.fadein{animation:fadeIn .25s ease}
+.fin{animation:fadeIn .2s ease}
 
-/* ── bottom nav ── */
-#bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;
-  background:#161921;border-top:1px solid #2A2F42;display:flex;z-index:50}
-.nb{flex:1;padding:10px 0 18px;background:none;border:none;cursor:pointer;display:flex;
-  flex-direction:column;align-items:center;gap:3px;font-size:10px;color:#6B7280;transition:color .15s}
+#bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#161921;border-top:1px solid #2A2F42;display:flex;z-index:50}
+.nb{flex:1;padding:10px 0 18px;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:#6B7280;transition:color .15s}
 .nb.on{color:#F5A623}
 .ni{font-size:22px;line-height:1}
 
-/* ── barcode scanner overlay ── */
+/* scanner overlay */
 #sc-ov{display:none;position:fixed;inset:0;z-index:999;background:#000;flex-direction:column;align-items:center;justify-content:center}
 #sc-ov.on{display:flex}
 #sc-vid{width:100%;max-width:500px;aspect-ratio:4/3;object-fit:cover;display:block;background:#111}
@@ -39,96 +38,80 @@ input[type=time]::-webkit-calendar-picker-indicator{filter:invert(1)}
 #sc-hint{position:absolute;bottom:100px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.9);font-size:14px;background:rgba(0,0,0,.6);border-radius:8px;padding:8px 18px;text-align:center;white-space:nowrap}
 #sc-close{position:absolute;top:24px;left:24px;background:rgba(0,0,0,.6);border:none;border-radius:10px;padding:10px 18px;color:#fff;font-size:15px;cursor:pointer}
 
-/* ── photo capture overlay ── */
+/* photo capture */
 #ph-ov{display:none;position:fixed;inset:0;z-index:999;background:#000;flex-direction:column;align-items:center;justify-content:center}
 #ph-ov.on{display:flex}
 #ph-vid{width:100%;max-width:500px;flex:1;object-fit:cover;display:block;background:#111}
-#ph-label{position:absolute;top:0;left:0;right:0;background:rgba(0,0,0,.75);padding:22px 20px 18px;font-size:15px;font-weight:600;color:#fff;text-align:center;line-height:1.55}
+#ph-label{position:absolute;top:0;left:0;right:0;background:rgba(0,0,0,.78);padding:22px 20px 18px;font-size:15px;font-weight:600;color:#fff;text-align:center;line-height:1.55}
 #ph-bar{position:absolute;bottom:0;left:0;right:0;padding:24px;display:flex;justify-content:center;background:rgba(0,0,0,.5)}
 #ph-shutter{width:72px;height:72px;border-radius:50%;background:#fff;border:5px solid rgba(255,255,255,.35);cursor:pointer;transition:transform .1s}
 #ph-shutter:active{transform:scale(.88)}
 #ph-close{position:absolute;top:24px;left:24px;background:rgba(0,0,0,.6);border:none;border-radius:10px;padding:10px 18px;color:#fff;font-size:15px;cursor:pointer}
 
-/* ── photo preview ── */
-#pv-ov{display:none;position:fixed;inset:0;z-index:1000;background:#000;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:0}
+/* photo preview */
+#pv-ov{display:none;position:fixed;inset:0;z-index:1000;background:#000;flex-direction:column;align-items:center;justify-content:center}
 #pv-ov.on{display:flex}
 #pv-img{width:100%;max-width:500px;aspect-ratio:4/3;object-fit:cover}
 #pv-bar{width:100%;max-width:500px;display:flex;gap:12px;padding:20px 16px;background:#161921}
 #pv-bar button{flex:1;padding:14px;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;border:none}
-#pv-ok{background:#F5A623;color:#000}
-#pv-retry{background:#2A2F42;color:#E8EAF0}
 
-/* ── object match overlay ── */
+/* object match */
 #om-ov{display:none;position:fixed;inset:0;z-index:999;background:#000;flex-direction:column;align-items:center;justify-content:center}
 #om-ov.on{display:flex}
 #om-vid{width:100%;max-width:500px;flex:1;object-fit:cover;display:block;background:#111}
-#om-label{position:absolute;top:0;left:0;right:0;background:rgba(0,0,0,.75);padding:22px 20px 18px;font-size:15px;font-weight:600;color:#fff;text-align:center;line-height:1.55}
+#om-label{position:absolute;top:0;left:0;right:0;background:rgba(0,0,0,.78);padding:22px 20px 18px;font-size:15px;font-weight:600;color:#fff;text-align:center;line-height:1.55}
 #om-bar{position:absolute;bottom:0;left:0;right:0;padding:24px;display:flex;justify-content:center;background:rgba(0,0,0,.5)}
-#om-shutter{width:72px;height:72px;border-radius:50%;background:#2EC069;border:5px solid rgba(46,192,105,.35);cursor:pointer;transition:transform .1s;display:flex;align-items:center;justify-content:center;font-size:28px}
+#om-shutter{width:72px;height:72px;border-radius:50%;background:#2EC069;border:5px solid rgba(46,192,105,.35);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:28px}
 #om-shutter:active{transform:scale(.88)}
 #om-close{position:absolute;top:24px;left:24px;background:rgba(0,0,0,.6);border:none;border-radius:10px;padding:10px 18px;color:#fff;font-size:15px;cursor:pointer}
 #om-status{position:absolute;bottom:120px;left:50%;transform:translateX(-50%);font-size:15px;font-weight:700;background:rgba(0,0,0,.75);border-radius:10px;padding:10px 20px;white-space:nowrap;display:none}
 
-/* ringtone chips */
-.rt-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-.rt-chip{padding:8px 14px;border-radius:20px;border:1.5px solid #2A2F42;background:#1E2230;color:#6B7280;font-size:13px;cursor:pointer;transition:all .15s;text-align:right}
-.rt-chip.sel{border-color:#F5A623;color:#F5A623}
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.chip{padding:8px 14px;border-radius:20px;border:1.5px solid #2A2F42;background:#1E2230;color:#6B7280;font-size:13px;cursor:pointer;transition:all .15s;text-align:right}
+.chip.sel{border-color:#F5A623;color:#F5A623}
+.chip.day{padding:8px 10px}
+.chip.day.sel{border-color:#2EC069;color:#2EC069}
 
-/* object library */
+/* info badges on alarm card */
+.bdg{font-size:11px;background:#161921;border:1px solid #2A2F42;border-radius:8px;padding:2px 8px;color:#6B7280}
+
+/* obj library */
 .obj-card{background:#1E2230;border:1px solid #2A2F42;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px}
 .obj-thumb{width:50px;height:50px;border-radius:8px;object-fit:cover;background:#0D0F14;flex-shrink:0}
+
+/* divider */
+.sect-div{margin:20px 0 4px;border-top:1px solid #2A2F42;padding-top:16px;font-size:13px;font-weight:600}
+
+/* chain step card */
+.chain-step{background:#1a2235;border:1px solid #2a3a5a;border-radius:14px;padding:16px;margin-top:12px;position:relative}
+.chain-step-title{font-size:13px;color:#6B7EAF;font-weight:600;margin-bottom:10px}
 </style>
 </head>
 <body>
 
-<!-- barcode scanner -->
-<div id="sc-ov">
-  <video id="sc-vid" autoplay playsinline muted></video>
-  <div id="sc-frame"></div>
-  <div id="sc-hint">כוון את המצלמה לברקוד</div>
-  <button id="sc-close">✕ סגור</button>
-</div>
-
-<!-- photo capture (for library registration) -->
-<div id="ph-ov">
-  <video id="ph-vid" autoplay playsinline muted></video>
-  <div id="ph-label">מצלם חפץ</div>
-  <button id="ph-close">✕ סגור</button>
-  <div id="ph-bar"><button id="ph-shutter"></button></div>
-</div>
-
-<!-- photo preview after capture -->
-<div id="pv-ov">
-  <img id="pv-img" src="" alt="תצוגה מקדימה">
-  <div id="pv-bar">
-    <button id="pv-ok">✓ שמור</button>
-    <button id="pv-retry">↺ צלם שוב</button>
-  </div>
-</div>
-
-<!-- object match (dismiss) -->
-<div id="om-ov">
-  <video id="om-vid" autoplay playsinline muted></video>
-  <div id="om-label">כוון אל החפץ ולחץ לצלם</div>
-  <button id="om-close">✕ סגור</button>
-  <div id="om-status"></div>
-  <div id="om-bar"><button id="om-shutter">📷</button></div>
-</div>
+<div id="sc-ov"><video id="sc-vid" autoplay playsinline muted></video><div id="sc-frame"></div><div id="sc-hint"></div><button id="sc-close">✕ סגור</button></div>
+<div id="ph-ov"><video id="ph-vid" autoplay playsinline muted></video><div id="ph-label"></div><button id="ph-close">✕ סגור</button><div id="ph-bar"><button id="ph-shutter"></button></div></div>
+<div id="pv-ov"><img id="pv-img" src="" alt=""><div id="pv-bar"><button id="pv-ok" style="background:#F5A623;color:#000">✓ שמור</button><button id="pv-retry" style="background:#2A2F42">↺ שוב</button></div></div>
+<div id="om-ov"><video id="om-vid" autoplay playsinline muted></video><div id="om-label"></div><button id="om-close">✕ סגור</button><div id="om-status"></div><div id="om-bar"><button id="om-shutter">📷</button></div></div>
 
 <div id="root" style="padding-bottom:64px"></div>
 <div id="bnav">
   <button class="nb on" data-tab="alarms" onclick="switchTab('alarms')"><span class="ni">⏰</span>שעונים</button>
-  <button class="nb" data-tab="library" onclick="switchTab('library')"><span class="ni">🖼️</span>ספריית חפצים</button>
+  <button class="nb" data-tab="library" onclick="switchTab('library')"><span class="ni">🖼️</span>ספרייה</button>
   <button class="nb" data-tab="settings" onclick="switchTab('settings')"><span class="ni">⚙️</span>הגדרות</button>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
 <script>
-// ══ palette & helpers ══════════════════════════════════════════════
+// ══ palette & helpers ═══════════════════════════════════════════════
 const C={bg:'#0D0F14',surface:'#161921',card:'#1E2230',border:'#2A2F42',
-  amber:'#F5A623',amberDim:'#7A5310',red:'#E84855',green:'#2EC069',text:'#E8EAF0',muted:'#6B7280',dimmer:'#3A3F52'};
+  amber:'#F5A623',amberDim:'#7A5310',red:'#E84855',green:'#2EC069',
+  text:'#E8EAF0',muted:'#6B7280',dimmer:'#3A3F52',blue:'#6B7EAF'};
 const pad=n=>String(n).padStart(2,'0');
 const $=id=>document.getElementById(id);
+const DAY_NAMES=['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+
 function el(tag,p={},...kids){
   const e=document.createElement(tag);
   for(const[k,v]of Object.entries(p)){
@@ -143,48 +126,60 @@ function el(tag,p={},...kids){
 const div=(p,...c)=>el('div',p,...c);
 const btn=(p,...c)=>el('button',p,...c);
 const lbl=t=>el('label',{style:{display:'block',fontSize:'13px',color:C.muted,marginBottom:'6px',marginTop:'16px',fontWeight:500}},t);
-function inp(type,val,dir,ph=''){
-  const i=el('input',{type,dir,placeholder:ph,style:{width:'100%',background:C.card,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'12px 14px',fontSize:'16px',outline:'none',color:C.text}});
+function tinp(type,val,dir,ph=''){
+  const i=el('input',{type,dir,placeholder:ph,
+    style:{width:'100%',background:C.card,border:`1px solid ${C.border}`,borderRadius:'12px',
+      padding:'12px 14px',fontSize:'16px',outline:'none',color:C.text}});
   i.value=val||'';return i;
 }
 
 // ══ storage ════════════════════════════════════════════════════════
 function load(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch{return def}}
-function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
+function store(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){if(e.name==='QuotaExceededError')alert('האחסון מלא! מחק פריטים ישנים.');}}
 
-let alarms   = load('alarms',[]);
-let objLib   = load('objLib',[]); // [{id,name,dataUrl}]
-let settings = load('settings',{masterPassword:'',ringtone:'classic'});
+let alarms   = load('alarms2',[]);
+let objLib   = load('objLib',[]);
+let settings = load('settings',{masterPassword:''});
+let customTones = load('customTones',[]);
 
-const saveAlarms=()=>save('alarms',alarms);
-const saveLib=()=>{
-  try{ localStorage.setItem('objLib',JSON.stringify(objLib)); }
-  catch(e){
-    // QuotaExceededError — images too large, store without dataUrl as fallback notice
-    alert('אחסון מלא! נסה למחוק חפצים ישנים מהספרייה.');
-  }
-};
-const saveSettings=()=>save('settings',settings);
+const saveAlarms=()=>store('alarms2',alarms);
+const saveLib=()=>store('objLib',objLib);
+const saveSettings=()=>store('settings',settings);
+const saveCustomTones=()=>store('customTones',customTones);
 
 // ══ ringtones ══════════════════════════════════════════════════════
 const RINGTONES=[
   {id:'classic',name:'📢 קלאסי',desc:'ביפים חדים',
-    play(ctx,t,vol){const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='square';o.frequency.setValueAtTime(880,t);o.frequency.exponentialRampToValueAtTime(440,t+.1);g.gain.setValueAtTime(vol*.3,t);g.gain.exponentialRampToValueAtTime(.001,t+.4);o.start(t);o.stop(t+.4);}},
-  {id:'gentle',name:'🌅 מתגבר',desc:'מתחיל רגוע ומתחזק',
-    play(ctx,t,vol){const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.setValueAtTime(440,t);o.frequency.linearRampToValueAtTime(528,t+.6);g.gain.setValueAtTime(vol*.04,t);g.gain.linearRampToValueAtTime(vol*.25,t+.5);g.gain.exponentialRampToValueAtTime(.001,t+.8);o.start(t);o.stop(t+.8);}},
+    play(ctx,t,v){const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='square';o.frequency.setValueAtTime(880,t);o.frequency.exponentialRampToValueAtTime(440,t+.1);g.gain.setValueAtTime(v*.3,t);g.gain.exponentialRampToValueAtTime(.001,t+.4);o.start(t);o.stop(t+.4);}},
+  {id:'gentle',name:'🌅 מתגבר',desc:'מתחיל שקט ומתחזק',
+    play(ctx,t,v){const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.setValueAtTime(440,t);o.frequency.linearRampToValueAtTime(528,t+.6);g.gain.setValueAtTime(v*.04,t);g.gain.linearRampToValueAtTime(v*.25,t+.5);g.gain.exponentialRampToValueAtTime(.001,t+.8);o.start(t);o.stop(t+.8);}},
   {id:'digital',name:'📱 דיגיטלי',desc:'ריצוד מודרני',
-    play(ctx,t,vol){[0,.1,.2].forEach((dt,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sawtooth';o.frequency.setValueAtTime(660+i*110,t+dt);g.gain.setValueAtTime(vol*.2,t+dt);g.gain.exponentialRampToValueAtTime(.001,t+dt+.08);o.start(t+dt);o.stop(t+dt+.1);});}},
+    play(ctx,t,v){[0,.1,.2].forEach((dt,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sawtooth';o.frequency.setValueAtTime(660+i*110,t+dt);g.gain.setValueAtTime(v*.2,t+dt);g.gain.exponentialRampToValueAtTime(.001,t+dt+.08);o.start(t+dt);o.stop(t+dt+.1);});}},
   {id:'bell',name:'🔔 פעמון',desc:'צלצול רך',
-    play(ctx,t,vol){[1,2,4,6].forEach((h,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.value=523.25*h;g.gain.setValueAtTime(vol*.15/h,t);g.gain.exponentialRampToValueAtTime(.001,t+1.5);o.start(t);o.stop(t+1.6);});}},
+    play(ctx,t,v){[1,2,4,6].forEach(h=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';o.frequency.value=523.25*h;g.gain.setValueAtTime(v*.15/h,t);g.gain.exponentialRampToValueAtTime(.001,t+1.5);o.start(t);o.stop(t+1.6);});}},
   {id:'siren',name:'🚨 צופר',desc:'דחוף וחזק',
-    play(ctx,t,vol){const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sawtooth';o.frequency.setValueAtTime(400,t);o.frequency.linearRampToValueAtTime(800,t+.3);o.frequency.linearRampToValueAtTime(400,t+.6);g.gain.setValueAtTime(vol*.25,t);g.gain.exponentialRampToValueAtTime(.001,t+.65);o.start(t);o.stop(t+.7);}}
+    play(ctx,t,v){const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sawtooth';o.frequency.setValueAtTime(400,t);o.frequency.linearRampToValueAtTime(800,t+.3);o.frequency.linearRampToValueAtTime(400,t+.6);g.gain.setValueAtTime(v*.25,t);g.gain.exponentialRampToValueAtTime(.001,t+.65);o.start(t);o.stop(t+.7);}}
 ];
 
-let audioCtx=null,beepIv=null,gentleVol=0.05,beepN=0;
+let audioCtx=null,beepIv=null,gentleVol=0.05,beepN=0,customAudio=null;
 function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx;}
-function playBeep(rid){try{const ctx=getCtx(),rt=RINGTONES.find(r=>r.id===rid)||RINGTONES[0];rt.play(ctx,ctx.currentTime,rid==='gentle'?gentleVol:1);}catch(e){}}
-function startSound(rid){beepN=0;gentleVol=0.05;playBeep(rid);clearInterval(beepIv);beepIv=setInterval(()=>{beepN++;if(rid==='gentle')gentleVol=Math.min(1,.05+beepN/120);playBeep(rid);},rid==='gentle'?900:800);}
-const stopSound=()=>{clearInterval(beepIv);beepN=0;gentleVol=0.05;};
+
+function startSound(rid){
+  stopSound();
+  beepN=0;gentleVol=0.05;
+  if(rid&&rid.startsWith('custom:')){
+    const tone=customTones.find(t=>String(t.id)===rid.slice(7));
+    if(tone){customAudio=new Audio(tone.dataUrl);customAudio.loop=true;customAudio.volume=.8;customAudio.play().catch(()=>{});return;}
+  }
+  const rt=RINGTONES.find(r=>r.id===rid)||RINGTONES[0];
+  function beep(){try{const ctx=getCtx();rt.play(ctx,ctx.currentTime,rid==='gentle'?gentleVol:1);}catch(e){}}
+  beep();
+  beepIv=setInterval(()=>{beepN++;if(rid==='gentle')gentleVol=Math.min(1,.05+beepN/120);beep();},rid==='gentle'?900:800);
+}
+function stopSound(){
+  clearInterval(beepIv);beepN=0;gentleVol=0.05;
+  if(customAudio){customAudio.pause();customAudio.currentTime=0;customAudio=null;}
+}
 
 let vibIv=null;
 function startVib(){if(!('vibrate'in navigator))return;navigator.vibrate([300,100,300]);vibIv=setInterval(()=>navigator.vibrate([300,100,300]),700);}
@@ -192,8 +187,8 @@ function stopVib(){clearInterval(vibIv);if('vibrate'in navigator)navigator.vibra
 
 // ══ barcode scanner ════════════════════════════════════════════════
 let scStream=null,scRaf=null,scCb=null;
-async function openScanner(cb){
-  scCb=cb;$('sc-ov').classList.add('on');
+async function openScanner(cb,hint){
+  scCb=cb;$('sc-hint').textContent=hint||'כוון אל הברקוד';$('sc-ov').classList.add('on');
   const vid=$('sc-vid');
   if(scStream){startScLoop(vid);return;}
   try{
@@ -219,134 +214,85 @@ function startScLoop(vid){
   }
   scRaf=requestAnimationFrame(tick);
 }
-function closeScanner(){
-  cancelAnimationFrame(scRaf);scRaf=null;
-  if(scStream){scStream.getTracks().forEach(t=>t.stop());scStream=null;}
-  scCb=null;$('sc-ov').classList.remove('on');$('sc-vid').srcObject=null;
-}
+function closeScanner(){cancelAnimationFrame(scRaf);scRaf=null;if(scStream){scStream.getTracks().forEach(t=>t.stop());scStream=null;}scCb=null;$('sc-ov').classList.remove('on');$('sc-vid').srcObject=null;}
 $('sc-close').onclick=closeScanner;
 
 // ══ photo capture ══════════════════════════════════════════════════
-let phStream=null,phCb=null,phLabel='';
-async function openPhoto(labelText, cb){
-  phLabel=labelText;phCb=cb;
-  $('ph-label').textContent=labelText;
-  $('ph-ov').classList.add('on');
+let phStream=null,phCb=null,phLabelText='';
+async function openPhoto(labelText,cb){
+  phLabelText=labelText;phCb=cb;$('ph-label').textContent=labelText;$('ph-ov').classList.add('on');
   const vid=$('ph-vid');
   if(phStream){vid.srcObject=phStream;try{await vid.play()}catch(e){};return;}
   try{
     const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
-    phStream=s;vid.srcObject=s;
-    vid.onloadedmetadata=async()=>{try{await vid.play()}catch(e){}};
+    phStream=s;vid.srcObject=s;vid.onloadedmetadata=async()=>{try{await vid.play()}catch(e){}};
   }catch(e){closePhoto();alert('שגיאת מצלמה: '+e.message);}
 }
-function capturePhoto(){
-  const vid=$('ph-vid');
-  // Resize to max 640px wide to keep localStorage size manageable
-  const MAX=640;
-  const scale=Math.min(1,MAX/vid.videoWidth);
-  const cv=document.createElement('canvas');
-  cv.width=Math.round(vid.videoWidth*scale);
-  cv.height=Math.round(vid.videoHeight*scale);
-  cv.getContext('2d').drawImage(vid,0,0,cv.width,cv.height);
-  return cv.toDataURL('image/jpeg',.75);
-}
-function closePhoto(){
-  if(phStream){phStream.getTracks().forEach(t=>t.stop());phStream=null;}
-  phCb=null;$('ph-ov').classList.remove('on');$('ph-vid').srcObject=null;
-}
+function closePhoto(){if(phStream){phStream.getTracks().forEach(t=>t.stop());phStream=null;}phCb=null;$('ph-ov').classList.remove('on');$('ph-vid').srcObject=null;}
 $('ph-close').onclick=closePhoto;
 $('ph-shutter').onclick=()=>{
-  const dataUrl=capturePhoto();
-  // Save callback & label BEFORE closePhoto() nulls them
-  const savedCb=phCb, savedLabel=phLabel;
-  closePhoto();
-  // show preview
-  $('pv-img').src=dataUrl;
-  $('pv-ov').classList.add('on');
-  $('pv-ok').onclick=()=>{
-    $('pv-ov').classList.remove('on');
-    if(savedCb) savedCb(dataUrl);
-  };
-  $('pv-retry').onclick=()=>{
-    $('pv-ov').classList.remove('on');
-    openPhoto(savedLabel, savedCb);
-  };
+  const vid=$('ph-vid'),MAX=640;
+  const scale=Math.min(1,MAX/vid.videoWidth);
+  const cv=document.createElement('canvas');cv.width=Math.round(vid.videoWidth*scale);cv.height=Math.round(vid.videoHeight*scale);
+  cv.getContext('2d').drawImage(vid,0,0,cv.width,cv.height);
+  const dataUrl=cv.toDataURL('image/jpeg',.75);
+  const savedCb=phCb,savedLabel=phLabelText;closePhoto();
+  $('pv-img').src=dataUrl;$('pv-ov').classList.add('on');
+  $('pv-ok').onclick=()=>{$('pv-ov').classList.remove('on');if(savedCb)savedCb(dataUrl);};
+  $('pv-retry').onclick=()=>{$('pv-ov').classList.remove('on');openPhoto(savedLabel,savedCb);};
 };
 
-// ══ image similarity (pixel-based) ════════════════════════════════
-// Resize both images to 32×32 and compare average color distance
-function imgToPixels(dataUrl,cb){
-  const img=new Image();
-  img.onload=()=>{
-    const cv=document.createElement('canvas');cv.width=32;cv.height=32;
-    cv.getContext('2d').drawImage(img,0,0,32,32);
-    cb(cv.getContext('2d').getImageData(0,0,32,32).data);
-  };
-  img.src=dataUrl;
-}
-function similarity(d1,d2){
-  let diff=0;
-  for(let i=0;i<d1.length;i+=4){
-    diff+=Math.abs(d1[i]-d2[i])+Math.abs(d1[i+1]-d2[i+1])+Math.abs(d1[i+2]-d2[i+2]);
-  }
-  // normalize: 0=identical, 1=completely different
-  return 1-(diff/(32*32*3*255));
-}
+// ══ image similarity ═══════════════════════════════════════════════
+function imgToPixels(dataUrl,cb){const img=new Image();img.onload=()=>{const cv=document.createElement('canvas');cv.width=32;cv.height=32;cv.getContext('2d').drawImage(img,0,0,32,32);cb(cv.getContext('2d').getImageData(0,0,32,32).data);};img.src=dataUrl;}
+function similarity(d1,d2){let diff=0;for(let i=0;i<d1.length;i+=4){diff+=Math.abs(d1[i]-d2[i])+Math.abs(d1[i+1]-d2[i+1])+Math.abs(d1[i+2]-d2[i+2]);}return 1-(diff/(32*32*3*255));}
 
-// ══ object match (dismiss) ═════════════════════════════════════════
-let omStream=null,omCb=null,omTargetPixels=null,omObjName='';
-async function openObjectMatch(obj, cb){
-  // obj = {id,name,dataUrl}
-  omObjName=obj.name;omCb=cb;
-  $('om-label').textContent=`📸 צלם את: ${obj.name}`;
-  $('om-status').style.display='none';
-  $('om-ov').classList.add('on');
-  // pre-load target pixels
-  imgToPixels(obj.dataUrl,px=>{omTargetPixels=px;});
+// ══ object match ═══════════════════════════════════════════════════
+let omStream=null,omCb=null,omTargetPx=null,omName='';
+async function openObjectMatch(obj,cb){
+  omName=obj.name;omCb=cb;$('om-label').textContent=`📸 צלם את: ${obj.name}`;$('om-status').style.display='none';$('om-ov').classList.add('on');
+  imgToPixels(obj.dataUrl,px=>{omTargetPx=px;});
   const vid=$('om-vid');
-  try{
-    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
-    omStream=s;vid.srcObject=s;
-    vid.onloadedmetadata=async()=>{try{await vid.play()}catch(e){}};
+  try{const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});omStream=s;vid.srcObject=s;vid.onloadedmetadata=async()=>{try{await vid.play()}catch(e){}};
   }catch(e){closeObjMatch();alert('שגיאת מצלמה: '+e.message);}
 }
 $('om-shutter').onclick=()=>{
-  const vid=$('om-vid');
-  const cv=document.createElement('canvas');
-  cv.width=vid.videoWidth;cv.height=vid.videoHeight;
-  cv.getContext('2d').drawImage(vid,0,0);
-  const dataUrl=cv.toDataURL('image/jpeg',.85);
-  imgToPixels(dataUrl,px=>{
-    if(!omTargetPixels){showOmStatus('⏳ טוען...','#F5A623');return;}
-    const score=similarity(omTargetPixels,px);
-    if(score>0.72){
-      showOmStatus('✅ זוהה!','#2EC069');
-      setTimeout(()=>{const c=omCb;closeObjMatch();c();},700);
-    }else{
-      showOmStatus('❌ לא נראה כמו '+omObjName+' — נסה שוב','#E84855');
-      setTimeout(()=>{$('om-status').style.display='none';},2000);
-    }
+  const vid=$('om-vid'),cv=document.createElement('canvas');cv.width=vid.videoWidth;cv.height=vid.videoHeight;cv.getContext('2d').drawImage(vid,0,0);
+  imgToPixels(cv.toDataURL('image/jpeg',.85),px=>{
+    if(!omTargetPx){showOmSt('⏳ טוען...','#F5A623');return;}
+    const s=similarity(omTargetPx,px);
+    if(s>0.72){showOmSt('✅ זוהה!','#2EC069');setTimeout(()=>{const c=omCb;closeObjMatch();c();},700);}
+    else{showOmSt('❌ לא נראה כמו '+omName+' — נסה שוב','#E84855');setTimeout(()=>$('om-status').style.display='none',2000);}
   });
 };
-function showOmStatus(txt,color){
-  const s=$('om-status');s.textContent=txt;s.style.color=color;s.style.display='block';
-}
-function closeObjMatch(){
-  if(omStream){omStream.getTracks().forEach(t=>t.stop());omStream=null;}
-  omCb=null;omTargetPixels=null;$('om-ov').classList.remove('on');$('om-vid').srcObject=null;
-}
+function showOmSt(t,c){const s=$('om-status');s.textContent=t;s.style.color=c;s.style.display='block';}
+function closeObjMatch(){if(omStream){omStream.getTracks().forEach(t=>t.stop());omStream=null;}omCb=null;omTargetPx=null;$('om-ov').classList.remove('on');$('om-vid').srcObject=null;}
 $('om-close').onclick=closeObjMatch;
 
-// ══ app state ══════════════════════════════════════════════════════
-let activeAlarm=null,screen='home',dismissMode=null,curTab='alarms',showAdd=false;
+// ══ alarm check ════════════════════════════════════════════════════
+// Alarm structure:
+// { id, label, time, repeat:'once'|'daily'|'days', days:[0-6],
+//   ringtone, password, barcode, objId,
+//   snooze:{enabled,minutes},
+//   chain:[{label,minutes,password,barcode,objId,ringtone},...],  // chained steps (no time, just offset)
+//   enabled }
+
+let screen='home',curTab='alarms';
+let activeAlarm=null,activeChainStep=null; // activeChainStep = current chain node being dismissed
+let dismissMode=null;
+let timerEndsAt=null,timerNextStep=null,timerIv=null;
+let snoozeTimeout=null;
+let editingId=null; // id of alarm being edited
+let showAdd=false;
 let lastTrigKey='';
 
-// ── chain timer state ───────────────────────────────────────────
-// screen='timer' means we're counting down between alarms
-let timerAlarm=null;      // the NEXT alarm to trigger if timer expires
-let timerEndsAt=null;     // Date object when timer expires
-let timerInterval=null;   // setInterval handle for countdown
+function isAlarmActiveToday(a){
+  if(!a.enabled)return false;
+  const dow=new Date().getDay(); // 0=Sun
+  if(a.repeat==='once')return true;
+  if(a.repeat==='daily')return true;
+  if(a.repeat==='days')return(a.days||[]).includes(dow);
+  return true;
+}
 
 function checkAlarms(){
   if(screen!=='home')return;
@@ -354,91 +300,119 @@ function checkAlarms(){
   const ts=pad(now.getHours())+':'+pad(now.getMinutes());
   const key=ts+'-'+now.getDate();
   if(key===lastTrigKey)return;
-  const a=alarms.find(a=>a.enabled&&a.time===ts);
-  if(a){lastTrigKey=key;triggerAlarm(a);}
+  const a=alarms.find(a=>a.enabled&&a.time===ts&&isAlarmActiveToday(a));
+  if(a){lastTrigKey=key;triggerAlarm(a,null);}
 }
 
-function triggerAlarm(a){
-  activeAlarm=a;screen='dismiss';dismissMode=null;
-  (window._startAlarm||startSound)(a.ringtone||'classic');startVib();render();
+// step=null means the root alarm, step=object means a chain step
+function triggerAlarm(alarm,step){
+  activeAlarm=alarm;activeChainStep=step;
+  dismissMode=null;screen='dismiss';
+  const rid=(step||alarm).ringtone||alarm.ringtone||'classic';
+  startSound(rid);startVib();render();
 }
 
-// Called when user successfully dismisses the CURRENT alarm.
-// If it has a chain, start the countdown; otherwise go home.
-function dismissAlarm(){
-  (window._stopAlarm||stopSound)();stopVib();closeScanner();closeObjMatch();
-  alarms=alarms.map(a=>a.id===activeAlarm.id?{...a,enabled:false}:a);
-  saveAlarms();
+function getStepDismiss(){return activeChainStep||activeAlarm;}
 
-  const chain=activeAlarm.chain; // {minutes, alarmId}
-  activeAlarm=null;dismissMode=null;
+function afterDismiss(){
+  // determine next chain step
+  const currentChain=activeChainStep
+    ? (activeAlarm.chain||[]).find((_,i,arr)=>arr[i-1]===activeChainStep||i===0&&activeChainStep===null) // find after current
+    : null;
 
-  if(chain&&chain.alarmId&&chain.minutes>0){
-    const next=alarms.find(a=>String(a.id)===String(chain.alarmId));
-    if(next){
-      startChainTimer(next, chain.minutes);
-      return;
-    }
+  // find index of current step in chain
+  const chain=activeAlarm.chain||[];
+  let nextStepIdx=-1;
+  if(!activeChainStep){
+    // just dismissed root — next is chain[0]
+    nextStepIdx=0;
+  } else {
+    const idx=chain.indexOf(activeChainStep);
+    nextStepIdx=idx+1;
   }
-  screen='home';render();
+
+  const nextStep=chain[nextStepIdx];
+
+  if(nextStep){
+    // Start timer for next step
+    startChainTimer(nextStep,nextStep.minutes);
+  } else {
+    // All done
+    if(activeAlarm.repeat==='once'){
+      alarms=alarms.map(a=>a.id===activeAlarm.id?{...a,enabled:false}:a);saveAlarms();
+    }
+    stopSound();stopVib();closeScanner();closeObjMatch();
+    activeAlarm=null;activeChainStep=null;screen='home';render();
+  }
 }
 
-function startChainTimer(nextAlarm, minutes){
-  timerAlarm=nextAlarm;
+function startChainTimer(step,minutes){
+  stopSound();stopVib();
+  timerNextStep=step;
   timerEndsAt=new Date(Date.now()+minutes*60*1000);
-  screen='timer';
-  clearInterval(timerInterval);
-  timerInterval=setInterval(()=>{
+  screen='timer';dismissMode=null;
+  clearInterval(timerIv);
+  timerIv=setInterval(()=>{
     const left=Math.ceil((timerEndsAt-Date.now())/1000);
-    if(left<=0){
-      clearInterval(timerInterval);
-      // Timer expired — fire the next alarm
-      alarms=alarms.map(a=>String(a.id)===String(timerAlarm.id)?{...a,enabled:true}:a);
-      saveAlarms();
-      triggerAlarm(timerAlarm);
-    } else {
-      // Just update the countdown display without full re-render
-      const el=$('timer-countdown');
-      if(el) el.textContent=fmtCountdown(left);
-    }
+    if(left<=0){clearInterval(timerIv);triggerAlarm(activeAlarm,timerNextStep);}
+    else{const e=$('timer-cd');if(e)e.textContent=fmtCD(left);}
   },500);
   render();
 }
 
-function fmtCountdown(secs){
-  const m=Math.floor(secs/60),s=secs%60;
-  return pad(m)+':'+pad(s);
+function fmtCD(s){return pad(Math.floor(s/60))+':'+pad(s%60);}
+
+function dismissAlarm(){
+  stopSound();stopVib();closeScanner();closeObjMatch();
+  clearTimeout(snoozeTimeout);snoozeTimeout=null;
+  activeChainStep=getStepDismiss()===activeAlarm?null:getStepDismiss();
+  // actually advance
+  const step=getStepDismiss();
+  const chain=activeAlarm.chain||[];
+  const nextIdx=!activeChainStep?0:chain.indexOf(activeChainStep)+1;
+  const nextStep=chain[nextIdx];
+  if(nextStep){startChainTimer(nextStep,nextStep.minutes);}
+  else{
+    if(activeAlarm.repeat==='once'){alarms=alarms.map(a=>a.id===activeAlarm.id?{...a,enabled:false}:a);saveAlarms();}
+    stopSound();stopVib();
+    activeAlarm=null;activeChainStep=null;screen='home';dismissMode=null;render();
+  }
 }
 
-// Called when user completes the NEXT alarm's unlock during the timer screen
-function dismissTimerEarly(){
-  clearInterval(timerInterval);
-  const next=timerAlarm;
-  timerAlarm=null;timerEndsAt=null;
-
-  // Mark next alarm as done too
-  alarms=alarms.map(a=>String(a.id)===String(next.id)?{...a,enabled:false}:a);
-  saveAlarms();
-
-  // If THAT alarm also has a chain, recurse
-  if(next.chain&&next.chain.alarmId&&next.chain.minutes>0){
-    const nn=alarms.find(a=>String(a.id)===String(next.chain.alarmId));
-    if(nn){ startChainTimer(nn,next.chain.minutes); return; }
-  }
-  screen='home';timerAlarm=null;render();
+function doSnooze(){
+  const mins=(activeAlarm.snooze&&activeAlarm.snooze.minutes)||5;
+  stopSound();stopVib();
+  screen='home';dismissMode=null;render();
+  snoozeTimeout=setTimeout(()=>{
+    // re-trigger same alarm/step without requiring dismiss
+    triggerAlarm(activeAlarm,activeChainStep);
+  },mins*60*1000);
 }
 
 function doShake(){const e=$('dc');if(!e)return;e.classList.remove('shake');void e.offsetWidth;e.classList.add('shake');}
 
-function switchTab(t){
-  curTab=t;
-  document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
-  render();
+// early dismiss during timer
+function timerEarlyDismiss(){
+  clearInterval(timerIv);
+  const step=timerNextStep;
+  timerNextStep=null;timerEndsAt=null;
+  // treat as if that step was dismissed
+  const chain=activeAlarm.chain||[];
+  const nextIdx=chain.indexOf(step)+1;
+  const nextStep=chain[nextIdx];
+  if(nextStep){startChainTimer(nextStep,nextStep.minutes);}
+  else{
+    if(activeAlarm.repeat==='once'){alarms=alarms.map(a=>a.id===activeAlarm.id?{...a,enabled:false}:a);saveAlarms();}
+    activeAlarm=null;activeChainStep=null;screen='home';render();
+  }
 }
+
+function switchTab(t){curTab=t;document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));render();}
 
 // ══ render ══════════════════════════════════════════════════════════
 function render(){
   $('root').innerHTML='';
+  $('bnav').style.display=screen==='home'?'flex':'none';
   if(screen==='dismiss'){$('root').append(buildDismiss());return;}
   if(screen==='timer'){$('root').append(buildTimerScreen());return;}
   if(curTab==='alarms')$('root').append(buildAlarmsTab());
@@ -446,212 +420,120 @@ function render(){
   else $('root').append(buildSettingsTab());
 }
 
-// ══ TIMER SCREEN ═══════════════════════════════════════════════════
-function buildTimerScreen(){
-  const secsLeft=Math.max(0,Math.ceil((timerEndsAt-Date.now())/1000));
-  const wrap=div({style:{position:'fixed',inset:0,background:C.bg,display:'flex',flexDirection:'column',
-    alignItems:'center',justifyContent:'center',direction:'rtl',padding:'24px'}});
-
-  wrap.append(div({style:{position:'absolute',inset:0,
-    background:`radial-gradient(ellipse at 50% 40%,#1a3a2a 0%,transparent 70%)`,
-    pointerEvents:'none'}}));
-
-  const content=div({style:{position:'relative',display:'flex',flexDirection:'column',
-    alignItems:'center',gap:'16px',width:'100%',maxWidth:'380px'}});
-
-  content.append(
-    el('div',{style:{fontSize:'48px'}},'⏱️'),
-    el('div',{style:{fontSize:'18px',fontWeight:600,color:C.text,textAlign:'center'}},
-      timerAlarm ? `יש לך זמן לבצע משימה לפני: ${timerAlarm.label}` : 'טיימר פעיל'),
-    el('div',{id:'timer-countdown',style:{fontSize:'72px',fontWeight:200,color:C.green,
-      letterSpacing:'-3px',fontVariantNumeric:'tabular-nums',lineHeight:1}},
-      fmtCountdown(secsLeft)),
-    el('div',{style:{fontSize:'14px',color:C.muted,textAlign:'center'}},
-      'השעון הבא יפעל אוטומטית כשהטיימר יסתיים')
-  );
-
-  // Early dismiss buttons — same unlock methods as next alarm
-  if(timerAlarm){
-    const hint=el('div',{style:{fontSize:'13px',color:C.amber,fontWeight:600,
-      marginTop:'8px',textAlign:'center'}},'סיים כבר? אמת את השעון הבא מוקדם:');
-    content.append(hint);
-
-    const btns=div({style:{display:'flex',gap:'10px',width:'100%',flexWrap:'wrap',justifyContent:'center',marginTop:'4px'}});
-
-    if(timerAlarm.barcode){
-      btns.append(dBtn('📷','סרוק ברקוד',()=>{
-        openScanner(val=>{
-          if(val===timerAlarm.barcode) dismissTimerEarly();
-          else { doShake(); }
-        });
-      }));
-    }
-    if(timerAlarm.objId){
-      const obj=objLib.find(o=>String(o.id)===String(timerAlarm.objId));
-      if(obj){
-        btns.append(dBtn('📸','צלם חפץ',()=>{
-          openObjectMatch(obj,()=>dismissTimerEarly());
-        }));
-      }
-    }
-    if(timerAlarm.password){
-      btns.append(dBtn('🔑','הזן סיסמה',()=>{
-        // show inline password field
-        btns.style.display='none';
-        const pw=div({style:{width:'100%',display:'flex',flexDirection:'column',gap:'10px',alignItems:'center',marginTop:'8px'}});
-        const pinp=el('input',{type:'password',placeholder:'סיסמה של השעון הבא...',dir:'ltr',
-          style:{width:'100%',background:C.card,border:`1.5px solid ${C.border}`,borderRadius:'14px',
-            padding:'14px 16px',fontSize:'20px',textAlign:'center',letterSpacing:'6px',outline:'none',color:C.text}});
-        const tryIt=()=>{
-          if(pinp.value===timerAlarm.password) dismissTimerEarly();
-          else{pinp.value='';pinp.style.borderColor=C.red;setTimeout(()=>pinp.style.borderColor=C.border,1200);}
-        };
-        pinp.addEventListener('keydown',e=>e.key==='Enter'&&tryIt());
-        pw.append(pinp,
-          btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',
-            padding:'12px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'},onclick:tryIt},'אשר'),
-          btn({style:{background:'none',border:'none',color:C.muted,fontSize:'13px',cursor:'pointer'},
-            onclick:()=>{btns.style.display='flex';content.removeChild(pw);}},'← חזור')
-        );
-        content.append(pw);
-        setTimeout(()=>pinp.focus(),80);
-      }));
-    }
-    // master password always
-    btns.append(dBtn('🔓','סיסמת מאסטר',()=>{
-      btns.style.display='none';
-      const pw=div({style:{width:'100%',display:'flex',flexDirection:'column',gap:'10px',alignItems:'center',marginTop:'8px'}});
-      const pinp=el('input',{type:'password',placeholder:'סיסמת מאסטר...',dir:'ltr',
-        style:{width:'100%',background:C.card,border:`1.5px solid ${C.border}`,borderRadius:'14px',
-          padding:'14px 16px',fontSize:'20px',textAlign:'center',letterSpacing:'6px',outline:'none',color:C.text}});
-      const tryIt=()=>{
-        if(settings.masterPassword&&pinp.value===settings.masterPassword){clearInterval(timerInterval);screen='home';timerAlarm=null;render();}
-        else{pinp.value='';pinp.style.borderColor=C.red;setTimeout(()=>pinp.style.borderColor=C.border,1200);}
-      };
-      pinp.addEventListener('keydown',e=>e.key==='Enter'&&tryIt());
-      pw.append(pinp,
-        btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',
-          padding:'12px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'},onclick:tryIt},'אשר'),
-        btn({style:{background:'none',border:'none',color:C.muted,fontSize:'13px',cursor:'pointer'},
-          onclick:()=>{btns.style.display='flex';content.removeChild(pw);}},'← חזור')
-      );
-      content.append(pw);
-      setTimeout(()=>pinp.focus(),80);
-    }));
-
-    content.append(btns);
-  }
-
-  wrap.append(content);return wrap;
-}
-
 // ══ DISMISS ════════════════════════════════════════════════════════
 function buildDismiss(){
+  const step=getStepDismiss();
+  const isChain=!!activeChainStep;
   const wrap=div({style:{position:'fixed',inset:0,background:C.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden',direction:'rtl'}});
   wrap.append(div({style:{position:'absolute',inset:0,background:`radial-gradient(ellipse at 50% 30%,${C.amber} 0%,transparent 70%)`,animation:'pulse .8s ease-in-out infinite alternate',pointerEvents:'none'}}));
   const content=div({id:'dc',style:{position:'relative',display:'flex',flexDirection:'column',alignItems:'center',gap:'12px',padding:'0 24px',width:'100%',maxWidth:'380px'}});
   content.append(
     el('div',{cls:'ring',style:{fontSize:'64px'}},'⏰'),
-    el('div',{style:{fontSize:'64px',fontWeight:200,color:C.text,letterSpacing:'-3px',fontVariantNumeric:'tabular-nums'}},activeAlarm.time),
-    el('div',{style:{fontSize:'22px',fontWeight:600,textAlign:'center'}},activeAlarm.label),
-    el('div',{style:{fontSize:'15px',color:C.muted,marginBottom:'8px'}},'כבה את השעון המעורר')
+    el('div',{style:{fontSize:isChain?'28px':'64px',fontWeight:200,color:C.text,letterSpacing:'-3px',fontVariantNumeric:'tabular-nums',lineHeight:1}},isChain?activeAlarm.time:activeAlarm.time),
+    el('div',{style:{fontSize:'22px',fontWeight:600,textAlign:'center'}},isChain?(step.label||activeAlarm.label):activeAlarm.label),
+    el('div',{style:{fontSize:'15px',color:C.muted,marginBottom:'4px'}},'כבה את השעון המעורר')
   );
 
   if(dismissMode===null){
     const btns=div({style:{display:'flex',gap:'10px',width:'100%',flexWrap:'wrap',justifyContent:'center'}});
-
-    if(activeAlarm.barcode){
-      btns.append(dBtn('📷','סרוק ברקוד',()=>{
-        dismissMode='scan';render();
-        openScanner(val=>{
-          if(val===activeAlarm.barcode)dismissAlarm();
-          else{dismissMode='scan-wrong';render();}
-        });
-      }));
+    if(step.barcode)btns.append(dBtn('📷','סרוק ברקוד',()=>{dismissMode='scan';render();openScanner(val=>{if(val===step.barcode)dismissAlarm();else{dismissMode='scan-wrong';render();}});}));
+    if(step.objId){const obj=objLib.find(o=>String(o.id)===String(step.objId));if(obj)btns.append(dBtn('📸','צלם חפץ',()=>{dismissMode='object';render();openObjectMatch(obj,()=>dismissAlarm());}));}
+    if(step.password)btns.append(dBtn('🔑','הזן סיסמה',()=>{dismissMode='password';render();setTimeout(()=>$('pi')?.focus(),80);}));
+    btns.append(dBtn('🔓','מאסטר',()=>{dismissMode='master';render();setTimeout(()=>$('mi')?.focus(),80);}));
+    if(activeAlarm.snooze&&activeAlarm.snooze.enabled){
+      btns.append(dBtn('😴',`נודניק\n${activeAlarm.snooze.minutes}דק`,doSnooze));
     }
-    if(activeAlarm.objId){
-      const obj=objLib.find(o=>String(o.id)===String(activeAlarm.objId));
-      if(obj){
-        btns.append(dBtn('📸','צלם חפץ',()=>{
-          dismissMode='object';render();
-          openObjectMatch(obj,()=>dismissAlarm());
-        }));
-      }
-    }
-    if(activeAlarm.password){
-      btns.append(dBtn('🔑','הזן סיסמה',()=>{dismissMode='password';render();setTimeout(()=>$('pi')?.focus(),80);}));
-    }
-
-    // master password button always
-    btns.append(dBtn('🔓','סיסמת מאסטר',()=>{dismissMode='master';render();setTimeout(()=>$('mi')?.focus(),80);}));
-
     content.append(btns);
   }
 
   if(dismissMode==='scan-wrong'){
-    content.append(div({cls:'fadein',style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'14px',width:'100%'}},
+    content.append(div({cls:'fin',style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'14px',width:'100%'}},
       el('div',{style:{fontSize:'48px'}},'❌'),
       el('div',{style:{color:C.red,fontSize:'17px',fontWeight:700}},'ברקוד לא נכון!'),
-      btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'14px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'},
-        onclick:()=>{dismissMode='scan';render();openScanner(val=>{if(val===activeAlarm.barcode)dismissAlarm();else{dismissMode='scan-wrong';render();doShake();}});}
-      },'נסה שוב'),
+      btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'14px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'},onclick:()=>{dismissMode='scan';render();openScanner(val=>{if(val===step.barcode)dismissAlarm();else{dismissMode='scan-wrong';render();doShake();}});}},'נסה שוב'),
       btn({style:{background:'none',border:'none',color:C.muted,fontSize:'14px',cursor:'pointer'},onclick:()=>{dismissMode=null;render();}},'← חזור')
     ));
   }
-
   if(dismissMode==='object'){
-    content.append(div({cls:'fadein',style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'12px',width:'100%'}},
+    content.append(div({cls:'fin',style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'12px',width:'100%'}},
       el('div',{style:{fontSize:'36px'}},'📸'),
-      el('div',{style:{color:C.text,fontSize:'16px',fontWeight:600,textAlign:'center'}},'המצלמה פועלת — צלם את החפץ'),
-      btn({style:{background:'none',border:'none',color:C.muted,fontSize:'14px',cursor:'pointer',marginTop:'8px'},
-        onclick:()=>{closeObjMatch();dismissMode=null;render();}},'← חזור')
+      el('div',{style:{color:C.text,fontSize:'16px',fontWeight:600,textAlign:'center'}},'כוון אל החפץ ולחץ צלם'),
+      btn({style:{background:'none',border:'none',color:C.muted,fontSize:'14px',cursor:'pointer',marginTop:'4px'},onclick:()=>{closeObjMatch();dismissMode=null;render();}},'← חזור')
     ));
   }
-
-  // password
-  function buildPwMode(id, checkFn, backFn){
-    const pw=div({cls:'fadein',style:{width:'100%',display:'flex',flexDirection:'column',gap:'10px',alignItems:'center'}});
-    const pinp=el('input',{id,type:'password',placeholder:'הזן סיסמה...',dir:'ltr',
+  function pwMode(id,checkFn,back){
+    const pw=div({cls:'fin',style:{width:'100%',display:'flex',flexDirection:'column',gap:'10px',alignItems:'center'}});
+    const pi=el('input',{id,type:'password',placeholder:'הזן סיסמה...',dir:'ltr',
       style:{width:'100%',background:C.card,border:`1.5px solid ${C.border}`,borderRadius:'14px',padding:'14px 16px',fontSize:'22px',textAlign:'center',letterSpacing:'6px',outline:'none',color:C.text}});
-    const err=el('div',{id:'pe',style:{color:C.red,fontSize:'14px',fontWeight:600,display:'none'}},'סיסמה שגויה!');
-    const tryIt=()=>{
-      if(checkFn(pinp.value))dismissAlarm();
-      else{err.style.display='block';pinp.value='';doShake();setTimeout(()=>err.style.display='none',1500);}
-    };
-    pinp.addEventListener('keydown',e=>e.key==='Enter'&&tryIt());
-    pw.append(pinp,err,
-      btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'14px 40px',fontSize:'17px',fontWeight:700,cursor:'pointer'},onclick:tryIt},'אשר'),
-      btn({style:{background:'none',border:'none',color:C.muted,fontSize:'14px',cursor:'pointer'},onclick:backFn},'← חזור')
-    );
+    const err=el('div',{style:{color:C.red,fontSize:'14px',fontWeight:600,display:'none'}},'סיסמה שגויה!');
+    const go=()=>{if(checkFn(pi.value))dismissAlarm();else{err.style.display='block';pi.value='';doShake();setTimeout(()=>err.style.display='none',1500);}};
+    pi.addEventListener('keydown',e=>e.key==='Enter'&&go());
+    pw.append(pi,err,btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'14px 40px',fontSize:'17px',fontWeight:700,cursor:'pointer'},onclick:go},'אשר'),
+      btn({style:{background:'none',border:'none',color:C.muted,fontSize:'14px',cursor:'pointer'},onclick:back},'← חזור'));
     return pw;
   }
-
-  if(dismissMode==='password'){
-    content.append(buildPwMode('pi',v=>v===activeAlarm.password,()=>{dismissMode=null;render();}));
-  }
-  if(dismissMode==='master'){
-    content.append(buildPwMode('mi',v=>settings.masterPassword&&v===settings.masterPassword,()=>{dismissMode=null;render();}));
-  }
-
+  if(dismissMode==='password')content.append(pwMode('pi',v=>v===step.password,()=>{dismissMode=null;render();}));
+  if(dismissMode==='master')content.append(pwMode('mi',v=>settings.masterPassword&&v===settings.masterPassword,()=>{dismissMode=null;render();}));
   wrap.append(content);return wrap;
 }
 
 function dBtn(icon,label,fn){
-  return btn({style:{flex:'1',minWidth:'100px',maxWidth:'140px',background:C.card,border:`1.5px solid ${C.amber}`,borderRadius:'16px',padding:'16px 10px',color:C.amber,fontSize:'14px',fontWeight:700,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:'8px'},onclick:fn},
-    el('span',{style:{fontSize:'26px'}},icon),label);
+  const lines=label.split('\n');
+  return btn({style:{flex:'1',minWidth:'90px',maxWidth:'130px',background:C.card,border:`1.5px solid ${C.amber}`,borderRadius:'16px',padding:'14px 8px',color:C.amber,fontSize:'13px',fontWeight:700,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:'6px'},onclick:fn},
+    el('span',{style:{fontSize:'24px'}},icon),...lines.map(l=>el('span',{},l)));
 }
 
-// ══ ALARMS TAB ══════════════════════════════════════════════════════
+// ══ TIMER SCREEN ═══════════════════════════════════════════════════
+function buildTimerScreen(){
+  const secsLeft=Math.max(0,Math.ceil((timerEndsAt-Date.now())/1000));
+  const step=timerNextStep;
+  const wrap=div({style:{position:'fixed',inset:0,background:C.bg,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',direction:'rtl',padding:'24px'}});
+  wrap.append(div({style:{position:'absolute',inset:0,background:`radial-gradient(ellipse at 50% 40%,#0d2218 0%,transparent 70%)`,pointerEvents:'none'}}));
+  const content=div({style:{position:'relative',display:'flex',flexDirection:'column',alignItems:'center',gap:'14px',width:'100%',maxWidth:'380px'}});
+  content.append(
+    el('div',{style:{fontSize:'44px'}},'⏱️'),
+    el('div',{style:{fontSize:'17px',fontWeight:600,color:C.text,textAlign:'center'}},step?(step.label||'שלב הבא'):' '),
+    el('div',{id:'timer-cd',style:{fontSize:'72px',fontWeight:200,color:C.green,letterSpacing:'-3px',fontVariantNumeric:'tabular-nums',lineHeight:1}},fmtCD(secsLeft)),
+    el('div',{style:{fontSize:'13px',color:C.muted,textAlign:'center'}},'השלב הבא יתחיל כשהטיימר יסתיים')
+  );
+
+  if(step){
+    const hint=el('div',{style:{fontSize:'13px',color:C.amber,fontWeight:600,marginTop:'6px',textAlign:'center'}},'סיימת כבר? אמת מראש:');
+    content.append(hint);
+    const btns=div({style:{display:'flex',gap:'10px',width:'100%',flexWrap:'wrap',justifyContent:'center'}});
+    if(step.barcode)btns.append(timerDBtn('📷','ברקוד',()=>{openScanner(val=>{if(val===step.barcode)timerEarlyDismiss();else doShake();},'כוון אל הברקוד');},));
+    if(step.objId){const obj=objLib.find(o=>String(o.id)===String(step.objId));if(obj)btns.append(timerDBtn('📸','צלם חפץ',()=>openObjectMatch(obj,()=>timerEarlyDismiss())));}
+    if(step.password)btns.append(timerDBtn('🔑','סיסמה',()=>{
+      const pw=div({cls:'fin',style:{width:'100%',display:'flex',flexDirection:'column',gap:'10px',alignItems:'center',marginTop:'8px'}});
+      const pi=el('input',{type:'password',placeholder:'סיסמת השלב הבא...',dir:'ltr',style:{width:'100%',background:C.card,border:`1.5px solid ${C.border}`,borderRadius:'14px',padding:'13px 16px',fontSize:'20px',textAlign:'center',letterSpacing:'6px',outline:'none',color:C.text}});
+      const go=()=>{if(pi.value===step.password)timerEarlyDismiss();else{pi.value='';pi.style.borderColor=C.red;setTimeout(()=>pi.style.borderColor=C.border,1200);}};
+      pi.addEventListener('keydown',e=>e.key==='Enter'&&go());
+      pw.append(pi,btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'12px 32px',fontSize:'15px',fontWeight:700,cursor:'pointer'},onclick:go},'אשר'));
+      btns.style.display='none';content.append(pw);setTimeout(()=>pi.focus(),80);
+    }));
+    btns.append(timerDBtn('🔓','מאסטר',()=>{
+      const pw=div({cls:'fin',style:{width:'100%',display:'flex',flexDirection:'column',gap:'10px',alignItems:'center',marginTop:'8px'}});
+      const pi=el('input',{type:'password',placeholder:'סיסמת מאסטר...',dir:'ltr',style:{width:'100%',background:C.card,border:`1.5px solid ${C.border}`,borderRadius:'14px',padding:'13px 16px',fontSize:'20px',textAlign:'center',letterSpacing:'6px',outline:'none',color:C.text}});
+      const go=()=>{if(settings.masterPassword&&pi.value===settings.masterPassword){clearInterval(timerIv);timerNextStep=null;timerEndsAt=null;if(activeAlarm.repeat==='once'){alarms=alarms.map(a=>a.id===activeAlarm.id?{...a,enabled:false}:a);saveAlarms();}activeAlarm=null;screen='home';render();}else{pi.value='';pi.style.borderColor=C.red;setTimeout(()=>pi.style.borderColor=C.border,1200);}};
+      pi.addEventListener('keydown',e=>e.key==='Enter'&&go());
+      pw.append(pi,btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'12px 32px',fontSize:'15px',fontWeight:700,cursor:'pointer'},onclick:go},'אשר'));
+      btns.style.display='none';content.append(pw);setTimeout(()=>pi.focus(),80);
+    }));
+    content.append(btns);
+  }
+  wrap.append(content);return wrap;
+}
+function timerDBtn(icon,label,fn){return btn({style:{flex:'1',minWidth:'80px',maxWidth:'110px',background:C.card,border:`1.5px solid ${C.green}`,borderRadius:'14px',padding:'12px 6px',color:C.green,fontSize:'12px',fontWeight:700,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:'6px'},onclick:fn},el('span',{style:{fontSize:'22px'}},icon),label);}
+
+// ══ ALARMS TAB ═════════════════════════════════════════════════════
 function buildAlarmsTab(){
   const now=new Date();
   const ts=pad(now.getHours())+':'+pad(now.getMinutes()),ss=pad(now.getSeconds());
   const ds=now.toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'});
   const wrap=div({style:{minHeight:'100vh',background:C.bg,direction:'rtl'}});
-
   const cw=div({style:{textAlign:'center',padding:'40px 24px 28px',background:`linear-gradient(180deg,${C.surface} 0%,${C.bg} 100%)`,borderBottom:`1px solid ${C.border}`}});
   const te=el('div',{id:'ct',style:{fontSize:'72px',fontWeight:200,letterSpacing:'-4px',lineHeight:1,fontVariantNumeric:'tabular-nums'}});
-  te.append(document.createTextNode(ts));
-  te.append(el('span',{id:'cs',style:{fontSize:'28px',fontWeight:400,color:C.amber,marginRight:'4px',letterSpacing:0}},ss));
+  te.append(document.createTextNode(ts),el('span',{id:'cs',style:{fontSize:'28px',fontWeight:400,color:C.amber,marginRight:'4px',letterSpacing:0}},ss));
   cw.append(te,el('div',{style:{marginTop:'8px',fontSize:'15px',color:C.muted}},ds));
   wrap.append(cw);
 
@@ -659,7 +541,7 @@ function buildAlarmsTab(){
   const hdr=div({style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}});
   hdr.append(el('span',{style:{fontSize:'18px',fontWeight:600}},'שעוני מעורר'),
     btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'20px',padding:'8px 18px',fontSize:'14px',fontWeight:700,cursor:'pointer'},
-      onclick:()=>{showAdd=true;render();}},'+ הוסף'));
+      onclick:()=>{editingId=null;showAdd=true;render();}},'+ הוסף'));
   sec.append(hdr);
 
   if(!alarms.length){
@@ -670,376 +552,324 @@ function buildAlarmsTab(){
   }
 
   alarms.forEach(a=>{
-    const rt=RINGTONES.find(r=>r.id===a.ringtone)||RINGTONES[0];
+    const rt=[...RINGTONES,{id:'custom',name:'🎵 מותאם'}].find(r=>r.id===(a.ringtone&&a.ringtone.startsWith('custom:')?'custom':a.ringtone))||RINGTONES[0];
     const obj=a.objId?objLib.find(o=>String(o.id)===String(a.objId)):null;
-    const card=div({style:{background:C.card,borderRadius:'16px',padding:'16px 20px',marginBottom:'12px',display:'flex',justifyContent:'space-between',alignItems:'center',border:`1px solid ${C.border}`,opacity:a.enabled?1:.5}});
-    const left=div({style:{flex:1}});
-    const bdg=div({style:{display:'flex',gap:'6px',marginTop:'5px',flexWrap:'wrap'}});
-    if(a.barcode)bdg.append(chip('📷 ברקוד'));
-    if(obj)bdg.append(chip('📸 '+obj.name));
-    if(a.password)bdg.append(chip('🔑 סיסמה'));
-    bdg.append(chip(rt.name));
-    if(a.chain&&a.chain.alarmId){
-      const nxt=alarms.find(x=>String(x.id)===String(a.chain.alarmId));
-      if(nxt)bdg.append(chip('⛓️ '+a.chain.minutes+'דק → '+nxt.label));
-    }
-    left.append(el('div',{style:{fontSize:'36px',fontWeight:300,letterSpacing:'-1px',fontVariantNumeric:'tabular-nums'}},a.time),
-      el('div',{style:{fontSize:'13px',color:C.muted,marginTop:'3px'}},a.label),bdg);
-    const right=div({style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'10px'}});
-    right.append(
-      btn({style:{width:'44px',height:'24px',borderRadius:'12px',border:'none',cursor:'pointer',background:a.enabled?C.amber:C.dimmer,transition:'background .2s'},
+    const card=div({style:{background:C.card,borderRadius:'16px',padding:'14px 16px',marginBottom:'12px',border:`1px solid ${C.border}`,opacity:a.enabled?1:.5}});
+
+    // top row: time + toggle + edit + delete
+    const topRow=div({style:{display:'flex',alignItems:'center',gap:'10px'}});
+    topRow.append(
+      el('div',{style:{fontSize:'34px',fontWeight:300,letterSpacing:'-1px',fontVariantNumeric:'tabular-nums',flex:1}},a.time),
+      btn({style:{width:'44px',height:'24px',borderRadius:'12px',border:'none',cursor:'pointer',background:a.enabled?C.amber:C.dimmer,transition:'background .2s',flexShrink:0},
         onclick:()=>{alarms=alarms.map(x=>x.id===a.id?{...x,enabled:!x.enabled}:x);saveAlarms();render();}}),
-      btn({style:{background:'none',border:'none',fontSize:'16px',cursor:'pointer',opacity:.5,padding:0},
-        onclick:()=>{alarms=alarms.filter(x=>x.id!==a.id);saveAlarms();render();}},'🗑')
+      btn({style:{background:'none',border:`1px solid ${C.border}`,borderRadius:'8px',padding:'5px 10px',fontSize:'13px',color:C.muted,cursor:'pointer'},
+        onclick:()=>{editingId=a.id;showAdd=true;render();}},'✏️'),
+      btn({style:{background:'none',border:'none',fontSize:'16px',cursor:'pointer',opacity:.5},
+        onclick:()=>{if(confirm('למחוק?')){alarms=alarms.filter(x=>x.id!==a.id);saveAlarms();render();}}},  '🗑')
     );
-    card.append(left,right);sec.append(card);
+    card.append(topRow);
+
+    // label + badges
+    const meta=div({style:{marginTop:'6px'}});
+    meta.append(el('div',{style:{fontSize:'13px',color:C.muted,marginBottom:'4px'}},a.label||'שעון מעורר'));
+    const bdgs=div({style:{display:'flex',gap:'5px',flexWrap:'wrap'}});
+    // repeat badge
+    if(a.repeat==='daily')bdgs.append(bdg('🔁 כל יום'));
+    else if(a.repeat==='once')bdgs.append(bdg('1️⃣ חד פעמי'));
+    else if(a.repeat==='days'&&a.days?.length){bdgs.append(bdg('📅 '+a.days.map(d=>DAY_NAMES[d]).join(' ')));}
+    if(a.barcode)bdgs.append(bdg('📷 ברקוד'));
+    if(obj)bdgs.append(bdg('📸 '+obj.name));
+    if(a.password)bdgs.append(bdg('🔑'));
+    if(a.snooze&&a.snooze.enabled)bdgs.append(bdg('😴 '+a.snooze.minutes+'דק'));
+    bdgs.append(bdg(rt.name.split(' ').slice(0,2).join(' ')));
+    if(a.chain&&a.chain.length)bdgs.append(bdg('⛓️ '+a.chain.length+' שלבים'));
+    meta.append(bdgs);
+    card.append(meta);
+    sec.append(card);
   });
   wrap.append(sec);
-  if(showAdd)wrap.append(buildAddModal());
+  if(showAdd)wrap.append(buildAlarmModal());
   return wrap;
 }
+function bdg(t){return el('span',{cls:'bdg'},t);}
 
-function chip(t){return el('span',{style:{fontSize:'11px',background:C.surface,border:`1px solid ${C.border}`,borderRadius:'8px',padding:'2px 8px',color:C.muted}},t);}
+// ══ ALARM MODAL (add + edit) ════════════════════════════════════════
+function buildAlarmModal(){
+  const existing=editingId?alarms.find(a=>a.id===editingId):null;
+  const now=new Date();
 
-// ══ ADD ALARM MODAL ═════════════════════════════════════════════════
-function buildAddModal(){
-  let localBarcode='',localObjId='',localRt='classic';
+  // Local state
+  let localTime=existing?.time||(pad(now.getHours())+':'+pad(now.getMinutes()));
+  let localLabel=existing?.label||'';
+  let localRepeat=existing?.repeat||'daily';
+  let localDays=existing?.days||[];
+  let localRt=existing?.ringtone||'classic';
+  let localBarcode=existing?.barcode||'';
+  let localObjId=existing?.objId||'';
+  let localPassword=existing?.password||'';
+  let localSnoozeOn=existing?.snooze?.enabled||false;
+  let localSnoozeMin=existing?.snooze?.minutes||5;
+  // Chain: array of steps
+  let localChain=JSON.parse(JSON.stringify(existing?.chain||[]));
 
-  const overlay=div({style:{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',display:'flex',alignItems:'flex-end',zIndex:200},
+  const overlay=div({style:{position:'fixed',inset:0,background:'rgba(0,0,0,.8)',display:'flex',alignItems:'flex-end',zIndex:200},
     onclick:()=>{showAdd=false;closeScanner();render();}});
-  const modal=div({style:{background:C.surface,borderRadius:'24px 24px 0 0',padding:'28px 20px 48px',width:'100%',maxHeight:'92vh',overflowY:'auto',direction:'rtl'},
+  const modal=div({style:{background:C.surface,borderRadius:'24px 24px 0 0',padding:'24px 20px 48px',width:'100%',maxHeight:'93vh',overflowY:'auto',direction:'rtl'},
     onclick:e=>e.stopPropagation()});
+  modal.append(el('div',{style:{fontSize:'20px',fontWeight:700,marginBottom:'20px',textAlign:'center'}},existing?'ערוך שעון מעורר':'שעון מעורר חדש'));
 
-  modal.append(el('div',{style:{fontSize:'20px',fontWeight:700,marginBottom:'20px',textAlign:'center'}},'שעון מעורר חדש'));
+  // ── Time ─────────────────────────────────────────────────────────
+  modal.append(lbl('⏰ שעה'));
+  const tInp=el('input',{type:'time',dir:'ltr',style:{width:'100%',background:C.card,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'12px 14px',fontSize:'18px',outline:'none',color:C.text}});
+  tInp.value=localTime;tInp.oninput=()=>localTime=tInp.value;
+  modal.append(tInp);
 
-  const tInp=inp('time',pad(new Date().getHours())+':'+pad(new Date().getMinutes()),'ltr');
-  const lInp=inp('text','','rtl','למשל: קום לעבודה');
-  const pInp=inp('password','','ltr','הזן סיסמה...');
-  modal.append(lbl('שעה'),tInp,lbl('תווית (אופציונלי)'),lInp);
+  // ── Label ─────────────────────────────────────────────────────────
+  modal.append(lbl('תווית'));
+  const lInp=tinp('text',localLabel,'rtl','למשל: קום לעבודה');
+  lInp.oninput=()=>localLabel=lInp.value;
+  modal.append(lInp);
 
-  // ringtone
-  modal.append(lbl('🎵 רינגטון'));
-  const chips=div({cls:'rt-chips'});
-  RINGTONES.forEach(rt=>{
-    const c=btn({cls:'rt-chip'+(rt.id==='classic'?' sel':''),onclick:()=>{
-      localRt=rt.id;chips.querySelectorAll('.rt-chip').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');
-      try{const ctx=getCtx();rt.play(ctx,ctx.currentTime,rt.id==='gentle'?.5:1);}catch(e){}
-    }},rt.name,el('span',{style:{display:'block',fontSize:'11px',color:C.muted,marginTop:'2px',fontWeight:400}},rt.desc));
-    chips.append(c);
-  });
-  // add custom tones to chip list
-  (customTones||[]).forEach(t=>{
-    const rid='custom:'+t.id;
-    const c=btn({cls:'rt-chip',onclick:()=>{
-      localRt=rid;chips.querySelectorAll('.rt-chip').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');
-      playCustomTone(t.dataUrl);
-    }},'🎵 '+t.name,el('span',{style:{display:'block',fontSize:'11px',color:C.muted,marginTop:'2px',fontWeight:400}},'מותאם אישית'));
-    chips.append(c);
-  });
-  modal.append(chips);
-
-  modal.append(div({style:{margin:'20px 0 4px',borderTop:`1px solid ${C.border}`,paddingTop:'16px'}},
-    el('span',{style:{fontSize:'13px',color:C.amber,fontWeight:600}},'שיטת כיבוי (חובה לפחות אחת)')));
-
-  modal.append(lbl('🔑 סיסמה לכיבוי'),pInp);
-
-  // barcode
-  modal.append(lbl('📷 ברקוד לכיבוי'));
-  const bSec=div({});modal.append(bSec);
-  function renderBSec(){
-    bSec.innerHTML='';
-    if(localBarcode){
-      bSec.append(div({style:{background:C.card,borderRadius:'12px',padding:'12px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',border:`1px solid ${C.green}`,color:C.green,fontSize:'14px',fontWeight:600}},
-        '✅ ברקוד נסרק!',
-        btn({style:{background:'none',border:`1px solid ${C.dimmer}`,borderRadius:'8px',padding:'4px 10px',color:C.muted,fontSize:'12px',cursor:'pointer'},onclick:()=>{localBarcode='';renderBSec();}},'מחק')));
-    }else{
-      bSec.append(btn({style:{width:'100%',background:C.card,border:`1.5px dashed ${C.amberDim}`,borderRadius:'12px',padding:'14px',color:C.amber,fontSize:'15px',fontWeight:600,cursor:'pointer',textAlign:'center'},
-        onclick:()=>openScanner(v=>{localBarcode=v;renderBSec();})},'📷 סרוק ברקוד'));
+  // ── Repeat ───────────────────────────────────────────────────────
+  modal.append(lbl('🔁 חזרה'));
+  const repContainer=div({});
+  modal.append(repContainer);
+  function renderRepeat(){
+    repContainer.innerHTML='';
+    const row=div({cls:'chips',style:{marginTop:'6px'}});
+    [['once','חד פעמי'],['daily','כל יום'],['days','ימים ספציפיים']].forEach(([v,t])=>{
+      const c=btn({cls:'chip'+(localRepeat===v?' sel':''),onclick:()=>{localRepeat=v;renderRepeat();}},t);
+      row.append(c);
+    });
+    repContainer.append(row);
+    if(localRepeat==='days'){
+      const dayRow=div({cls:'chips',style:{marginTop:'10px'}});
+      [0,1,2,3,4,5,6].forEach(d=>{
+        const on=localDays.includes(d);
+        const c=btn({cls:'chip day'+(on?' sel':''),onclick:()=>{localDays=on?localDays.filter(x=>x!==d):[...localDays,d];renderRepeat();}},DAY_NAMES[d]);
+        dayRow.append(c);
+      });
+      repContainer.append(dayRow);
     }
   }
-  renderBSec();
+  renderRepeat();
 
-  // object from library
-  modal.append(lbl('📸 חפץ לכיבוי (מהספרייה)'));
+  // ── Ringtone ─────────────────────────────────────────────────────
+  modal.append(lbl('🎵 רינגטון'));
+  const rtChips=div({cls:'chips'});
+  const allTones=[...RINGTONES,...customTones.map(t=>({id:'custom:'+t.id,name:'🎵 '+t.name,desc:'מותאם',play:()=>{}}))];
+  allTones.forEach(rt=>{
+    const c=btn({cls:'chip'+(localRt===rt.id?' sel':''),onclick:()=>{
+      localRt=rt.id;rtChips.querySelectorAll('.chip').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');
+      try{if(rt.id.startsWith('custom:')){const tone=customTones.find(t=>'custom:'+t.id===rt.id);if(tone){const a=new Audio(tone.dataUrl);a.play().catch(()=>{});}}else{const ctx=getCtx();rt.play(ctx,ctx.currentTime,rt.id==='gentle'?.5:1);}}catch(e){}
+    }},rt.name,el('span',{style:{display:'block',fontSize:'11px',color:C.muted,marginTop:'2px',fontWeight:400}},rt.desc||''));
+    rtChips.append(c);
+  });
+  modal.append(rtChips);
+
+  // ── Dismiss method ───────────────────────────────────────────────
+  modal.append(div({cls:'sect-div',style:{color:C.amber}},'שיטת כיבוי (חובה לפחות אחת)'));
+
+  modal.append(lbl('🔑 סיסמה'));
+  const pInp=tinp('password',localPassword,'ltr','הזן סיסמה...');pInp.oninput=()=>localPassword=pInp.value;
+  modal.append(pInp);
+
+  modal.append(lbl('📷 ברקוד'));
+  const bSec=div({});modal.append(bSec);
+  function renderBSec(){bSec.innerHTML='';
+    if(localBarcode){bSec.append(div({style:{background:C.card,borderRadius:'12px',padding:'12px 16px',display:'flex',justifyContent:'space-between',alignItems:'center',border:`1px solid ${C.green}`,color:C.green,fontSize:'14px',fontWeight:600}},'✅ ברקוד נסרק!',btn({style:{background:'none',border:`1px solid ${C.dimmer}`,borderRadius:'8px',padding:'4px 10px',color:C.muted,fontSize:'12px',cursor:'pointer'},onclick:()=>{localBarcode='';renderBSec();}},'מחק')));}
+    else bSec.append(btn({style:{width:'100%',background:C.card,border:`1.5px dashed ${C.amberDim}`,borderRadius:'12px',padding:'13px',color:C.amber,fontSize:'14px',fontWeight:600,cursor:'pointer',textAlign:'center'},onclick:()=>openScanner(v=>{localBarcode=v;renderBSec();},'סרוק ברקוד לכיבוי')},'📷 סרוק ברקוד'));
+  }renderBSec();
+
+  modal.append(lbl('📸 חפץ (מהספרייה)'));
   const oSec=div({});modal.append(oSec);
-  function renderOSec(){
-    oSec.innerHTML='';
-    if(!objLib.length){
-      oSec.append(el('div',{style:{fontSize:'13px',color:C.muted,padding:'10px 0'}},'הספרייה ריקה — הוסף חפצים בטאב "ספריית חפצים"'));
-      return;
-    }
+  function renderOSec(){oSec.innerHTML='';
+    if(!objLib.length){oSec.append(el('div',{style:{fontSize:'13px',color:C.muted,padding:'8px 0'}},'הספרייה ריקה — הוסף חפצים בטאב "ספרייה"'));return;}
     const sel=el('select',{dir:'rtl',style:{width:'100%',background:C.card,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'12px 14px',fontSize:'15px',outline:'none',color:C.text}});
     sel.append(el('option',{value:''},'— ללא —'));
-    objLib.forEach(o=>sel.append(el('option',{value:o.id},o.name)));
-    if(localObjId)sel.value=localObjId;
-    sel.onchange=()=>{localObjId=sel.value;}; // sel.value is always string
+    objLib.forEach(o=>sel.append(el('option',{value:String(o.id)},o.name)));
+    sel.value=String(localObjId||'');sel.onchange=()=>localObjId=sel.value;
     oSec.append(sel);
+  }renderOSec();
+
+  // ── Snooze ───────────────────────────────────────────────────────
+  modal.append(div({cls:'sect-div',style:{color:C.blue}},'😴 נודניק'));
+  const snoozeRow=div({style:{display:'flex',alignItems:'center',gap:'12px',marginTop:'8px'}});
+  const snoozeToggle=btn({style:{padding:'9px 20px',borderRadius:'20px',border:`1.5px solid ${localSnoozeOn?C.amber:C.border}`,background:localSnoozeOn?C.amberDim:C.card,color:localSnoozeOn?C.amber:C.muted,fontSize:'14px',fontWeight:600,cursor:'pointer'},
+    onclick:()=>{localSnoozeOn=!localSnoozeOn;snoozeToggle.style.borderColor=localSnoozeOn?C.amber:C.border;snoozeToggle.style.background=localSnoozeOn?C.amberDim:C.card;snoozeToggle.style.color=localSnoozeOn?C.amber:C.muted;snoozeToggle.textContent=localSnoozeOn?'✅ פעיל':'כבוי';snoozeMinRow.style.display=localSnoozeOn?'flex':'none';}},localSnoozeOn?'✅ פעיל':'כבוי');
+  snoozeRow.append(el('span',{style:{fontSize:'14px',color:C.muted}},'נודניק:'),snoozeToggle);
+  modal.append(snoozeRow);
+  const snoozeMinRow=div({style:{display:localSnoozeOn?'flex':'none',alignItems:'center',gap:'10px',marginTop:'10px'}});
+  const snoozeMinInp=el('input',{type:'number',min:'1',max:'60',dir:'ltr',style:{width:'70px',background:C.card,border:`1px solid ${C.border}`,borderRadius:'10px',padding:'9px 10px',fontSize:'15px',outline:'none',color:C.text,textAlign:'center'}});
+  snoozeMinInp.value=localSnoozeMin;snoozeMinInp.oninput=()=>localSnoozeMin=parseInt(snoozeMinInp.value)||5;
+  snoozeMinRow.append(el('span',{style:{fontSize:'14px',color:C.muted}},'משך:'),snoozeMinInp,el('span',{style:{fontSize:'14px',color:C.muted}},'דקות'));
+  modal.append(snoozeMinRow);
+
+  // ── Chain ─────────────────────────────────────────────────────────
+  modal.append(div({cls:'sect-div',style:{color:C.blue}},'⛓️ שלבים (אופציונלי)'));
+  const chainContainer=div({});modal.append(chainContainer);
+
+  function renderChain(){
+    chainContainer.innerHTML='';
+    localChain.forEach((step,i)=>{
+      const card=div({cls:'chain-step'});
+      card.append(el('div',{cls:'chain-step-title'},`שלב ${i+1} — אחרי ${i===0?'השעון הראשון':('שלב '+(i))}`));
+
+      // minutes
+      const mr=div({style:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'10px'}});
+      const mi=el('input',{type:'number',min:'1',max:'240',dir:'ltr',style:{width:'70px',background:C.surface,border:`1px solid ${C.border}`,borderRadius:'10px',padding:'8px 10px',fontSize:'15px',outline:'none',color:C.text,textAlign:'center'}});
+      mi.value=step.minutes||10;mi.oninput=()=>{step.minutes=parseInt(mi.value)||10;};
+      mr.append(el('span',{style:{fontSize:'13px',color:C.muted}},'מתחיל'),mi,el('span',{style:{fontSize:'13px',color:C.muted}},'דקות אחרי'));
+      card.append(mr);
+
+      // label
+      const li2=tinp('text',step.label||'','rtl','תיאור השלב (למשל: התקלח)');
+      li2.style.fontSize='14px';li2.style.padding='9px 12px';li2.style.marginBottom='8px';
+      li2.oninput=()=>step.label=li2.value;card.append(li2);
+
+      // ringtone for step
+      const srtRow=div({style:{marginBottom:'8px'}});
+      const srtSel=el('select',{dir:'rtl',style:{width:'100%',background:C.surface,border:`1px solid ${C.border}`,borderRadius:'10px',padding:'8px 12px',fontSize:'13px',outline:'none',color:C.text}});
+      allTones.forEach(rt=>srtSel.append(el('option',{value:rt.id},rt.name)));
+      srtSel.value=step.ringtone||'classic';srtSel.onchange=()=>step.ringtone=srtSel.value;
+      srtRow.append(el('span',{style:{fontSize:'12px',color:C.muted,display:'block',marginBottom:'4px'}},'רינגטון:'),srtSel);
+      card.append(srtRow);
+
+      // dismiss method for step
+      const spInp=el('input',{type:'password',placeholder:'סיסמה לשלב זה...',dir:'ltr',style:{width:'100%',background:C.surface,border:`1px solid ${C.border}`,borderRadius:'10px',padding:'9px 12px',fontSize:'14px',outline:'none',color:C.text,marginBottom:'8px'}});
+      spInp.value=step.password||'';spInp.oninput=()=>step.password=spInp.value;card.append(spInp);
+
+      const sbSec=div({});card.append(sbSec);
+      function renderSBSec(){sbSec.innerHTML='';
+        if(step.barcode){sbSec.append(div({style:{color:C.green,fontSize:'13px',fontWeight:600,marginBottom:'6px'}},'✅ ברקוד נסרק!',btn({style:{marginRight:'8px',background:'none',border:`1px solid ${C.dimmer}`,borderRadius:'6px',padding:'3px 8px',color:C.muted,fontSize:'11px',cursor:'pointer'},onclick:()=>{step.barcode='';renderSBSec();}},'מחק')));}
+        else sbSec.append(btn({style:{width:'100%',background:C.surface,border:`1.5px dashed ${C.amberDim}`,borderRadius:'10px',padding:'10px',color:C.amber,fontSize:'13px',fontWeight:600,cursor:'pointer',textAlign:'center',marginBottom:'6px'},onclick:()=>openScanner(v=>{step.barcode=v;renderSBSec();},'סרוק ברקוד לשלב זה')},'📷 סרוק ברקוד'));
+      }renderSBSec();
+
+      // obj for step
+      if(objLib.length){
+        const soSel=el('select',{dir:'rtl',style:{width:'100%',background:C.surface,border:`1px solid ${C.border}`,borderRadius:'10px',padding:'8px 12px',fontSize:'13px',outline:'none',color:C.text,marginBottom:'6px'}});
+        soSel.append(el('option',{value:''},'— ללא חפץ —'));
+        objLib.forEach(o=>soSel.append(el('option',{value:String(o.id)},o.name)));
+        soSel.value=String(step.objId||'');soSel.onchange=()=>step.objId=soSel.value;
+        card.append(soSel);
+      }
+
+      // delete step
+      const delRow=div({style:{display:'flex',justifyContent:'flex-end',marginTop:'6px'}});
+      delRow.append(btn({style:{background:'none',border:`1px solid ${C.red}`,borderRadius:'8px',padding:'6px 12px',color:C.red,fontSize:'12px',cursor:'pointer'},
+        onclick:()=>{localChain.splice(i,1);renderChain();}},'🗑 הסר שלב'));
+      card.append(delRow);
+      chainContainer.append(card);
+    });
+
+    // add step button
+    chainContainer.append(btn({style:{width:'100%',background:C.card,border:`1.5px dashed ${C.blue}`,borderRadius:'12px',padding:'13px',color:C.blue,fontSize:'14px',fontWeight:600,cursor:'pointer',textAlign:'center',marginTop:'8px'},
+      onclick:()=>{localChain.push({minutes:10,label:'',password:'',barcode:'',objId:'',ringtone:'classic'});renderChain();}},'+ הוסף שלב'));
   }
-  renderOSec();
+  renderChain();
 
-  // ── chain config ──────────────────────────────────────────────────
-  modal.append(div({style:{margin:'20px 0 4px',borderTop:`1px solid ${C.border}`,paddingTop:'16px'}},
-    el('span',{style:{fontSize:'13px',color:'#6B7EAF',fontWeight:600}},'⛓️ שרשרת — המשך לשעון הבא (אופציונלי)')));
-
-  let localChainId='', localChainMin=10;
-  const chainSec=div({});modal.append(chainSec);
-  function renderChainSec(){
-    chainSec.innerHTML='';
-    const chainAlarms=alarms; // all alarms can be chained to
-    if(!chainAlarms.length){
-      chainSec.append(el('div',{style:{fontSize:'13px',color:C.muted,padding:'8px 0'}},'אין שעוני מעורר אחרים — הוסף קודם שעון נוסף'));
-      return;
-    }
-    const row=div({style:{display:'flex',gap:'8px',alignItems:'center'}});
-    const chainSel=el('select',{dir:'rtl',style:{flex:1,background:C.card,border:`1px solid ${C.border}`,
-      borderRadius:'12px',padding:'10px 12px',fontSize:'14px',outline:'none',color:C.text}});
-    chainSel.append(el('option',{value:''},'— ללא שרשרת —'));
-    chainAlarms.forEach(a=>chainSel.append(el('option',{value:String(a.id)},a.time+' — '+a.label)));
-    chainSel.value=localChainId;
-    chainSel.onchange=()=>{ localChainId=chainSel.value; renderMinRow(); };
-    row.append(chainSel);
-    chainSec.append(row);
-
-    const minRow=div({id:'chain-min-row',style:{display:localChainId?'flex':'none',gap:'8px',alignItems:'center',marginTop:'8px'}});
-    const minInp=el('input',{type:'number',min:'1',max:'240',dir:'ltr',
-      style:{width:'80px',background:C.card,border:`1px solid ${C.border}`,borderRadius:'10px',
-        padding:'9px 12px',fontSize:'15px',outline:'none',color:C.text,textAlign:'center'}});
-    minInp.value=localChainMin;
-    minInp.oninput=()=>localChainMin=parseInt(minInp.value)||10;
-    minRow.append(el('span',{style:{fontSize:'14px',color:C.muted}},'טיימר:'),minInp,el('span',{style:{fontSize:'14px',color:C.muted}},'דקות'));
-    minRow.append(el('div',{style:{fontSize:'12px',color:C.muted,marginTop:'4px',width:'100%'}},
-      '💡 אם תסרוק את החפץ של השעון הבא בזמן הטיימר — הוא יתבטל מראש'));
-    chainSec.append(minRow);
-
-    function renderMinRow(){ minRow.style.display=localChainId?'flex':'none'; }
-    chainSel.onchange=()=>{ localChainId=chainSel.value; renderMinRow(); };
-  }
-  renderChainSec();
-
+  // ── Save ──────────────────────────────────────────────────────────
   const actions=div({style:{marginTop:'24px',display:'flex',flexDirection:'column',gap:'10px'}});
   actions.append(
     btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'14px',padding:'15px',fontSize:'16px',fontWeight:700,cursor:'pointer',width:'100%'},
       onclick:()=>{
-        const t=tInp.value,l=lInp.value,p=pInp.value,b=localBarcode,o=localObjId;
-        if(!t||(!p&&!b&&!o)){alert('חובה להגדיר לפחות שיטת כיבוי אחת');return;}
-        const chain=localChainId?{alarmId:localChainId,minutes:localChainMin}:null;
-        alarms.push({id:Date.now(),time:t,label:l||'שעון מעורר',password:p,barcode:b,objId:String(o||''),ringtone:localRt,chain,enabled:true});
-        saveAlarms();showAdd=false;closeScanner();render();
-      }},'שמור שעון מעורר'),
+        const p=localPassword,b=localBarcode,o=localObjId;
+        const chainValid=localChain.every(s=>s.password||s.barcode||s.objId);
+        if(!localTime||(!p&&!b&&!o)){alert('חובה להגדיר שעה ולפחות שיטת כיבוי אחת');return;}
+        if(!chainValid){alert('כל שלב בשרשרת חייב לפחות שיטת כיבוי אחת');return;}
+        const alarm={id:existing?existing.id:Date.now(),time:localTime,label:localLabel||'שעון מעורר',
+          repeat:localRepeat,days:localDays,ringtone:localRt,
+          password:p,barcode:b,objId:String(o||''),
+          snooze:{enabled:localSnoozeOn,minutes:localSnoozeMin},
+          chain:localChain,enabled:existing?existing.enabled:true};
+        if(existing)alarms=alarms.map(a=>a.id===existing.id?alarm:a);
+        else alarms.push(alarm);
+        saveAlarms();showAdd=false;editingId=null;closeScanner();render();
+      }},existing?'שמור שינויים':'שמור שעון מעורר'),
     btn({style:{background:'none',border:`1px solid ${C.border}`,borderRadius:'14px',padding:'13px',fontSize:'15px',color:C.muted,cursor:'pointer',width:'100%'},
-      onclick:()=>{showAdd=false;closeScanner();render();}},'ביטול')
+      onclick:()=>{showAdd=false;editingId=null;closeScanner();render();}},'ביטול')
   );
   modal.append(actions);overlay.append(modal);return overlay;
 }
 
-// ══ LIBRARY TAB ═════════════════════════════════════════════════════
+// ══ LIBRARY TAB ════════════════════════════════════════════════════
 function buildLibraryTab(){
   const wrap=div({style:{minHeight:'100vh',background:C.bg,direction:'rtl',padding:'28px 16px 0'}});
   const hdr=div({style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'20px'}});
   hdr.append(el('span',{style:{fontSize:'20px',fontWeight:700}},'ספריית חפצים'),
-    btn({style:{background:C.green,color:'#000',border:'none',borderRadius:'20px',padding:'8px 18px',fontSize:'14px',fontWeight:700,cursor:'pointer'},
-      onclick:addObjectFlow},'+ צלם חפץ'));
+    btn({style:{background:C.green,color:'#000',border:'none',borderRadius:'20px',padding:'8px 18px',fontSize:'14px',fontWeight:700,cursor:'pointer'},onclick:addObjectFlow},'+ צלם חפץ'));
   wrap.append(hdr);
-
   if(!objLib.length){
-    wrap.append(div({style:{textAlign:'center',padding:'60px 20px',color:C.muted,fontSize:'15px'}},
-      el('div',{style:{fontSize:'40px',marginBottom:'8px'}},'🖼️'),
-      el('div',{},'הספרייה ריקה'),
-      el('div',{style:{fontSize:'13px',marginTop:'4px'}},'לחץ "+ צלם חפץ" להוסיף')));
+    wrap.append(div({style:{textAlign:'center',padding:'60px 20px',color:C.muted,fontSize:'15px'}},el('div',{style:{fontSize:'40px',marginBottom:'8px'}},'🖼️'),el('div',{},'הספרייה ריקה'),el('div',{style:{fontSize:'13px',marginTop:'4px'}},'לחץ "+ צלם חפץ" להוסיף')));
     return wrap;
   }
-
   objLib.forEach(obj=>{
     const card=div({cls:'obj-card'});
     const img=el('img',{cls:'obj-thumb',src:obj.dataUrl,alt:obj.name});
-    const name=el('div',{cls:'obj-name'},obj.name);
-    const del=btn({cls:'obj-del',onclick:()=>{
-      if(!confirm(`למחוק "${obj.name}"?`))return;
-      objLib=objLib.filter(o=>o.id!==obj.id);saveLib();
-      // remove from alarms too
-      alarms=alarms.map(a=>String(a.objId)===String(obj.id)?{...a,objId:''}:a);saveAlarms();
-      render();
-    }},'🗑');
+    const name=el('div',{style:{flex:1,fontSize:'15px',fontWeight:500}},obj.name);
+    const del=btn({style:{background:'none',border:`1px solid ${C.border}`,borderRadius:'8px',padding:'6px 10px',color:C.muted,fontSize:'12px',cursor:'pointer'},
+      onclick:()=>{if(!confirm(`למחוק "${obj.name}"?`))return;objLib=objLib.filter(o=>o.id!==obj.id);saveLib();alarms=alarms.map(a=>a.objId===String(obj.id)?{...a,objId:''}:a);saveAlarms();render();}},'🗑');
     card.append(img,name,del);wrap.append(card);
   });
   return wrap;
 }
 
 function addObjectFlow(){
-  // prompt() is blocked in GitHub Pages PWA context — use inline modal
-  const overlay=div({style:{position:'fixed',inset:0,background:'rgba(0,0,0,.82)',display:'flex',
-    alignItems:'center',justifyContent:'center',zIndex:300,padding:'24px'}});
-  const box=div({style:{background:C.surface,borderRadius:'20px',padding:'24px 20px',
-    width:'100%',maxWidth:'360px',direction:'rtl'}});
-  box.append(
-    el('div',{style:{fontSize:'18px',fontWeight:700,marginBottom:'6px'}},'📸 הוסף חפץ לספרייה'),
-    el('div',{style:{fontSize:'13px',color:C.muted,marginBottom:'16px'}},
-      'תן שם לחפץ — תצטרך לצלמו כדי לכבות את השעון')
-  );
-  const nameInp=el('input',{type:'text',placeholder:'למשל: כוס קפה, ברז מקלחת...',dir:'rtl',
-    style:{width:'100%',background:C.card,border:`1px solid ${C.border}`,borderRadius:'12px',
-      padding:'13px 14px',fontSize:'16px',outline:'none',color:C.text,marginBottom:'14px'}});
-  const go=btn({style:{width:'100%',background:C.green,color:'#000',border:'none',
-    borderRadius:'12px',padding:'13px',fontSize:'16px',fontWeight:700,cursor:'pointer',marginBottom:'10px'},
-    onclick:()=>{
-      const name=nameInp.value.trim();
-      if(!name){nameInp.style.borderColor=C.red;return;}
-      document.body.removeChild(overlay);
-      openPhoto(`📸 צלם את: ${name}\nמקם את החפץ במרכז המסך`, dataUrl=>{
-        objLib.push({id:Date.now(), name, dataUrl});
-        saveLib();
-        switchTab('library');
-      });
-    }},'המשך לצילום →');
-  const cancel=btn({style:{width:'100%',background:'none',border:`1px solid ${C.border}`,
-    borderRadius:'12px',padding:'12px',fontSize:'15px',color:C.muted,cursor:'pointer'},
-    onclick:()=>document.body.removeChild(overlay)},'ביטול');
-  box.append(nameInp,go,cancel);
-  overlay.onclick=e=>{if(e.target===overlay)document.body.removeChild(overlay);};
-  overlay.append(box);
-  document.body.append(overlay);
-  setTimeout(()=>nameInp.focus(),80);
+  const overlay=div({style:{position:'fixed',inset:0,background:'rgba(0,0,0,.82)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:300,padding:'24px'}});
+  const box=div({style:{background:C.surface,borderRadius:'20px',padding:'24px 20px',width:'100%',maxWidth:'360px',direction:'rtl'}});
+  box.append(el('div',{style:{fontSize:'18px',fontWeight:700,marginBottom:'6px'}},'📸 הוסף חפץ לספרייה'),
+    el('div',{style:{fontSize:'13px',color:C.muted,marginBottom:'16px'}},'תן שם לחפץ — תצטרך לצלמו כדי לכבות את השעון'));
+  const ni=el('input',{type:'text',placeholder:'למשל: כוס קפה, ברז מקלחת...',dir:'rtl',
+    style:{width:'100%',background:C.card,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'13px 14px',fontSize:'16px',outline:'none',color:C.text,marginBottom:'14px'}});
+  const go=btn({style:{width:'100%',background:C.green,color:'#000',border:'none',borderRadius:'12px',padding:'13px',fontSize:'16px',fontWeight:700,cursor:'pointer',marginBottom:'10px'},
+    onclick:()=>{const name=ni.value.trim();if(!name){ni.style.borderColor=C.red;return;}document.body.removeChild(overlay);
+      openPhoto(`📸 צלם את: ${name}\nמקם את החפץ במרכז המסך`,dataUrl=>{objLib.push({id:Date.now(),name,dataUrl});saveLib();switchTab('library');});}},
+    'המשך לצילום →');
+  const cancel=btn({style:{width:'100%',background:'none',border:`1px solid ${C.border}`,borderRadius:'12px',padding:'12px',fontSize:'15px',color:C.muted,cursor:'pointer'},onclick:()=>document.body.removeChild(overlay)},'ביטול');
+  box.append(ni,go,cancel);overlay.onclick=e=>{if(e.target===overlay)document.body.removeChild(overlay);};
+  overlay.append(box);document.body.append(overlay);setTimeout(()=>ni.focus(),80);
 }
 
-// ══ SETTINGS TAB ════════════════════════════════════════════════════
-// custom ringtones stored as { id, name, dataUrl (base64 audio) }
-let customTones = [];
-try { customTones = JSON.parse(localStorage.getItem('customTones')||'[]'); } catch{}
-const saveCustomTones = () => { try{localStorage.setItem('customTones',JSON.stringify(customTones))}catch{} };
-
-// audio element for custom tones
-let customAudio = null;
-function playCustomTone(dataUrl){
-  if(customAudio){ customAudio.pause(); customAudio=null; }
-  customAudio = new Audio(dataUrl);
-  customAudio.volume = 0.8;
-  customAudio.play().catch(()=>{});
-}
-function stopCustomAudio(){
-  if(customAudio){ customAudio.pause(); customAudio.currentTime=0; customAudio=null; }
-}
-
-// Override startSound / stopSound to support custom tones
-const _origStartSound = startSound;
-const _origStopSound  = stopSound;
-window._startAlarm = function(rid){
-  if(rid && rid.startsWith('custom:')){
-    const tid = rid.slice(7);
-    const tone = customTones.find(t=>String(t.id)===tid);
-    if(tone){
-      stopCustomAudio();
-      customAudio = new Audio(tone.dataUrl);
-      customAudio.loop = true;
-      customAudio.volume = 0.8;
-      customAudio.play().catch(()=>{});
-      return;
-    }
-  }
-  _origStartSound(rid);
-};
-window._stopAlarm = function(){
-  stopCustomAudio();
-  _origStopSound();
-};
-
+// ══ SETTINGS TAB ═══════════════════════════════════════════════════
 function buildSettingsTab(){
   const wrap=div({style:{minHeight:'100vh',background:C.bg,direction:'rtl',padding:'28px 16px 16px'}});
   wrap.append(el('div',{style:{fontSize:'20px',fontWeight:700,marginBottom:'20px'}},'הגדרות'));
 
-  // ── master password ──────────────────────────────────────────────
+  // master password
   const mpCard=div({style:{background:C.card,border:`1px solid ${C.border}`,borderRadius:'16px',padding:'20px',marginBottom:'16px'}});
-  mpCard.append(
-    el('div',{style:{fontSize:'16px',fontWeight:600,marginBottom:'4px'}},'🔓 סיסמת מאסטר'),
-    el('div',{style:{fontSize:'13px',color:C.muted,marginBottom:'14px'}},'מכבה כל שעון מעורר בחירום, ללא קשר להגדרות שלו')
-  );
-  const mpInp=el('input',{type:'password',placeholder:'הזן סיסמת מאסטר...',dir:'ltr',
-    style:{width:'100%',background:C.surface,border:`1px solid ${C.border}`,borderRadius:'12px',
-      padding:'12px 14px',fontSize:'16px',outline:'none',color:C.text,marginBottom:'10px'}});
-  mpInp.value=settings.masterPassword||'';
-  const mpStatus=el('div',{style:{fontSize:'13px',color:C.green,display:'none',marginBottom:'8px'}},'✅ נשמר!');
-  const mpSave=btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'12px',
-    padding:'11px 24px',fontSize:'14px',fontWeight:700,cursor:'pointer'},
-    onclick:()=>{settings.masterPassword=mpInp.value.trim();saveSettings();
-      mpStatus.style.display='block';setTimeout(()=>mpStatus.style.display='none',2000);
-    }},'שמור');
-  const mpClear=btn({style:{background:'none',border:`1px solid ${C.border}`,borderRadius:'12px',
-    padding:'11px 24px',fontSize:'14px',color:C.muted,cursor:'pointer',marginRight:'8px'},
-    onclick:()=>{mpInp.value='';settings.masterPassword='';saveSettings();
-      mpStatus.textContent='🗑 נמחקה';mpStatus.style.display='block';
-      setTimeout(()=>{mpStatus.style.display='none';mpStatus.textContent='✅ נשמר!';},2000);
-    }},'מחק');
-  mpCard.append(mpInp,mpStatus,div({style:{display:'flex',gap:'8px'}},mpClear,mpSave));
+  mpCard.append(el('div',{style:{fontSize:'16px',fontWeight:600,marginBottom:'4px'}},'🔓 סיסמת מאסטר'),
+    el('div',{style:{fontSize:'13px',color:C.muted,marginBottom:'14px'}},'מכבה כל שעון בחירום, ללא קשר להגדרות'));
+  const mpI=el('input',{type:'password',placeholder:'הזן סיסמת מאסטר...',dir:'ltr',style:{width:'100%',background:C.surface,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'12px 14px',fontSize:'16px',outline:'none',color:C.text,marginBottom:'10px'}});
+  mpI.value=settings.masterPassword||'';
+  const mpSt=el('div',{style:{fontSize:'13px',color:C.green,display:'none',marginBottom:'8px'}},'✅ נשמר!');
+  mpCard.append(mpI,mpSt,div({style:{display:'flex',gap:'8px'}},
+    btn({style:{background:'none',border:`1px solid ${C.border}`,borderRadius:'12px',padding:'11px 20px',fontSize:'14px',color:C.muted,cursor:'pointer'},onclick:()=>{mpI.value='';settings.masterPassword='';saveSettings();mpSt.textContent='🗑 נמחקה';mpSt.style.display='block';setTimeout(()=>{mpSt.style.display='none';mpSt.textContent='✅ נשמר!';},2000);}},'מחק'),
+    btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'12px',padding:'11px 20px',fontSize:'14px',fontWeight:700,cursor:'pointer'},onclick:()=>{settings.masterPassword=mpI.value.trim();saveSettings();mpSt.style.display='block';setTimeout(()=>mpSt.style.display='none',2000);}},'שמור')
+  ));
   wrap.append(mpCard);
 
-  // ── custom ringtones ─────────────────────────────────────────────
+  // custom ringtones
   const rtCard=div({style:{background:C.card,border:`1px solid ${C.border}`,borderRadius:'16px',padding:'20px',marginBottom:'16px'}});
-  rtCard.append(
-    el('div',{style:{fontSize:'16px',fontWeight:600,marginBottom:'4px'}},'🎵 רינגטונים מותאמים אישית'),
-    el('div',{style:{fontSize:'13px',color:C.muted,marginBottom:'14px'}},'העלה קבצי MP3/WAV/OGG — הם יופיעו כאפשרות בבחירת רינגטון')
-  );
-
-  const toneList=div({});
-  function renderToneList(){
-    toneList.innerHTML='';
-    if(!customTones.length){
-      toneList.append(el('div',{style:{fontSize:'13px',color:C.muted,marginBottom:'12px'}},'אין רינגטונים מותאמים עדיין'));
-    }
+  rtCard.append(el('div',{style:{fontSize:'16px',fontWeight:600,marginBottom:'4px'}},'🎵 רינגטונים מותאמים'),
+    el('div',{style:{fontSize:'13px',color:C.muted,marginBottom:'12px'}},'העלה MP3/WAV/OGG'));
+  const tList=div({});
+  let custAudio2=null;
+  function renderTList(){tList.innerHTML='';
+    if(!customTones.length)tList.append(el('div',{style:{fontSize:'13px',color:C.muted,marginBottom:'10px'}},'אין רינגטונים עדיין'));
     customTones.forEach(t=>{
-      const row=div({style:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px',
-        background:C.surface,borderRadius:'10px',padding:'10px 12px'}});
-      const playBtn=btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'8px',
-        padding:'6px 12px',fontSize:'13px',fontWeight:700,cursor:'pointer'},
-        onclick:()=>playCustomTone(t.dataUrl)},'▶');
-      const stopBtn=btn({style:{background:C.dimmer,color:C.text,border:'none',borderRadius:'8px',
-        padding:'6px 12px',fontSize:'13px',cursor:'pointer'},
-        onclick:stopCustomAudio},'■');
-      const namEl=el('span',{style:{flex:1,fontSize:'14px',fontWeight:500,overflow:'hidden',
-        textOverflow:'ellipsis',whiteSpace:'nowrap'}},t.name);
-      const delBtn=btn({style:{background:'none',border:'none',fontSize:'16px',cursor:'pointer',opacity:.5},
-        onclick:()=>{
-          customTones=customTones.filter(x=>x.id!==t.id);saveCustomTones();
-          // remove from alarms that used it
-          alarms=alarms.map(a=>a.ringtone===`custom:${t.id}`?{...a,ringtone:'classic'}:a);saveAlarms();
-          renderToneList();
-        }},'🗑');
-      row.append(playBtn,stopBtn,namEl,delBtn);
-      toneList.append(row);
+      const row=div({style:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px',background:C.surface,borderRadius:'10px',padding:'9px 12px'}});
+      row.append(
+        btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'8px',padding:'5px 10px',fontSize:'12px',fontWeight:700,cursor:'pointer'},onclick:()=>{if(custAudio2){custAudio2.pause();custAudio2=null;}custAudio2=new Audio(t.dataUrl);custAudio2.play().catch(()=>{});}},'▶'),
+        btn({style:{background:C.dimmer,color:C.text,border:'none',borderRadius:'8px',padding:'5px 10px',fontSize:'12px',cursor:'pointer'},onclick:()=>{if(custAudio2){custAudio2.pause();custAudio2=null;}}},'■'),
+        el('span',{style:{flex:1,fontSize:'13px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},t.name),
+        btn({style:{background:'none',border:'none',fontSize:'15px',cursor:'pointer',opacity:.5},onclick:()=>{customTones=customTones.filter(x=>x.id!==t.id);saveCustomTones();alarms=alarms.map(a=>a.ringtone===`custom:${t.id}`?{...a,ringtone:'classic'}:a);saveAlarms();renderTList();}},'🗑')
+      );tList.append(row);
     });
-  }
-  renderToneList();
-  rtCard.append(toneList);
-
-  // upload button
-  const fileInp=el('input',{type:'file',accept:'audio/*,audio/mp3,audio/wav,audio/ogg',style:{display:'none'}});
-  fileInp.onchange=()=>{
-    const file=fileInp.files[0];
-    if(!file)return;
-    const reader=new FileReader();
-    reader.onload=e=>{
-      const dataUrl=e.target.result;
-      const name=file.name.replace(/\.[^.]+$/,'');
-      customTones.push({id:Date.now(),name,dataUrl});
-      saveCustomTones();
-      renderToneList();
-    };
-    reader.readAsDataURL(file);
-    fileInp.value='';
-  };
-  const uploadBtn=btn({style:{width:'100%',background:C.surface,border:`1.5px dashed ${C.amberDim}`,
-    borderRadius:'12px',padding:'13px',color:C.amber,fontSize:'15px',fontWeight:600,cursor:'pointer',
-    textAlign:'center',marginTop:'4px'},
-    onclick:()=>fileInp.click()},'+ העלה קובץ אודיו');
-  rtCard.append(fileInp,uploadBtn);
+  }renderTList();rtCard.append(tList);
+  const fi=el('input',{type:'file',accept:'audio/*',style:{display:'none'}});
+  fi.onchange=()=>{const f=fi.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{customTones.push({id:Date.now(),name:f.name.replace(/\.[^.]+$/,''),dataUrl:e.target.result});saveCustomTones();renderTList();};r.readAsDataURL(f);fi.value='';};
+  rtCard.append(fi,btn({style:{width:'100%',background:C.surface,border:`1.5px dashed ${C.amberDim}`,borderRadius:'12px',padding:'12px',color:C.amber,fontSize:'14px',fontWeight:600,cursor:'pointer',textAlign:'center',marginTop:'4px'},onclick:()=>fi.click()},'+ העלה קובץ אודיו'));
   wrap.append(rtCard);
-
-  // ── info ─────────────────────────────────────────────────────────
-  wrap.append(div({style:{background:C.card,border:`1px solid ${C.border}`,borderRadius:'16px',padding:'20px'}},
-    el('div',{style:{fontSize:'16px',fontWeight:600,marginBottom:'8px'}},'ℹ️ אודות'),
-    el('div',{style:{fontSize:'13px',color:C.muted,lineHeight:1.8}},
-      '• שעוני מעורר ותמונות נשמרים בדפדפן',el('br',{}),'• ספריית חפצים — מצלם חפץ, בזמן כיבוי צולם שוב ומשווה',el('br',{}),'• סיסמת מאסטר מכבה כל שעון בחירום'
-    )
-  ));
-
   return wrap;
 }
 
@@ -1049,8 +879,7 @@ setInterval(()=>{
   const now=new Date();const s=now.getSeconds();
   checkAlarms();
   if(s!==lastSec&&screen==='home'&&curTab==='alarms'){
-    lastSec=s;
-    const ct=$('ct'),cs=$('cs');
+    lastSec=s;const ct=$('ct'),cs=$('cs');
     if(!ct){render();return;}
     ct.childNodes[0].textContent=pad(now.getHours())+':'+pad(now.getMinutes());
     cs.textContent=pad(s);
