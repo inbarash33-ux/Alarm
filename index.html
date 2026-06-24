@@ -74,6 +74,8 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 <div id="root"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════
 // PALETTE & HELPERS
@@ -262,83 +264,157 @@ $('scanner-close').onclick=()=>closeScanner();
 // ══════════════════════════════════════════════════════════
 // OBJECT DETECTION  (via Claude Vision API)
 // ══════════════════════════════════════════════════════════
-let detectStream=null,detectCallback=null,detectTarget=null;
-let detectCapturing=false;
+// ── Object map: Hebrew → COCO-SSD English labels ─────────────────────────────
+// COCO-SSD recognizes 80 classes. We map common Hebrew words to them.
+const OBJECT_MAP = {
+  // kitchen / drink
+  'כוס': ['cup','wine glass','bottle'],
+  'כוס קפה': ['cup'],
+  'בקבוק': ['bottle'],
+  'כיסא': ['chair'],
+  'ספה': ['couch','sofa'],
+  'שולחן': ['dining table'],
+  'מחשב': ['laptop','computer','keyboard','mouse'],
+  'טלפון': ['cell phone'],
+  'ספר': ['book'],
+  'שעון': ['clock'],
+  'אוכל': ['sandwich','pizza','hot dog','cake','donut'],
+  'פרי': ['apple','orange','banana'],
+  'תפוח': ['apple'],
+  'בננה': ['banana'],
+  'כלב': ['dog'],
+  'חתול': ['cat'],
+  'אדם': ['person'],
+  'מכונית': ['car'],
+  'אופניים': ['bicycle'],
+  'ברז': ['sink'],           // closest to tap/faucet
+  'כיור': ['sink'],
+  'אסלה': ['toilet'],
+  'מקלחת': ['sink'],        // no shower class — use sink as proxy
+  'מראה': ['tv'],           // no mirror — fallback
+  'מיטה': ['bed'],
+  'טלוויזיה': ['tv'],
+  'תיק': ['handbag','backpack','suitcase'],
+  'מזוודה': ['suitcase'],
+  'עציץ': ['potted plant'],
+};
 
-async function openObjectDetect(targetLabel, callback){
-  // targetLabel = e.g. "כוס קפה"
-  detectTarget=targetLabel;
-  detectCallback=callback;
-  $('detect-hint').textContent=`מחפש: ${targetLabel}\nכוון את המצלמה לחפץ`;
-  $('detect-result').style.display='none';
-  $('detect-overlay').classList.add('active');
-  detectCapturing=false;
-
-  const video=$('detect-video');
-  if(detectStream){video.srcObject=detectStream;try{await video.play()}catch(e){}startDetectLoop(video);return;}
-  try{
-    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
-    detectStream=stream;video.srcObject=stream;
-    video.onloadedmetadata=async()=>{try{await video.play()}catch(e){}startDetectLoop(video);};
-  }catch(err){closeDetect();alert('לא ניתן לגשת למצלמה.\n'+err.message);}
+// Build reverse lookup: english label → true
+function getTargetLabels(hebrewInput) {
+  const input = hebrewInput.trim().toLowerCase();
+  // exact match
+  if (OBJECT_MAP[input]) return OBJECT_MAP[input];
+  // partial match
+  for (const [he, en] of Object.entries(OBJECT_MAP)) {
+    if (input.includes(he) || he.includes(input)) return en;
+  }
+  // fallback: try to detect "person" for anything unknown, but return null
+  // so we show a friendly error
+  return null;
 }
 
-function startDetectLoop(video){
-  // Capture a frame every 2.5 seconds and send to Claude
-  if(detectCapturing)return;
-  detectCapturing=true;
-  const canvas=document.createElement('canvas');
+let detectStream=null, detectCallback=null, detectTarget=null, detectLabels=null;
+let detectCapturing=false, cocoModel=null, cocoLoading=false;
 
-  async function captureAndAnalyze(){
-    if(!detectStream||!$('detect-overlay').classList.contains('active'))return;
-    if(video.readyState>=video.HAVE_ENOUGH_DATA&&video.videoWidth>0){
-      canvas.width=video.videoWidth;canvas.height=video.videoHeight;
-      const ctx=canvas.getContext('2d');ctx.drawImage(video,0,0);
-      const base64=canvas.toDataURL('image/jpeg',.7).split(',')[1];
+async function loadCoco() {
+  if (cocoModel) return cocoModel;
+  if (cocoLoading) {
+    // wait for it
+    while (cocoLoading) await new Promise(r => setTimeout(r, 200));
+    return cocoModel;
+  }
+  cocoLoading = true;
+  try {
+    cocoModel = await cocoSsd.load();
+  } catch(e) { console.error('COCO load error', e); }
+  cocoLoading = false;
+  return cocoModel;
+}
 
-      try{
-        const res=await fetch('https://api.anthropic.com/v1/messages',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({
-            model:'claude-sonnet-4-6',
-            max_tokens:60,
-            messages:[{role:'user',content:[
-              {type:'image',source:{type:'base64',media_type:'image/jpeg',data:base64}},
-              {type:'text',text:`Does this image contain a "${detectTarget}"? Answer only YES or NO.`}
-            ]}]
-          })
-        });
-        const data=await res.json();
-        const answer=(data?.content?.[0]?.text||'').trim().toUpperCase();
-        if(answer.startsWith('YES')){
-          const rd=$('detect-result');
-          rd.textContent='✅ זוהה! '+detectTarget;
-          rd.style.display='block';
-          setTimeout(()=>{
-            const cb=detectCallback;
+async function openObjectDetect(targetLabel, callback){
+  detectTarget = targetLabel;
+  detectLabels = getTargetLabels(targetLabel);
+  detectCallback = callback;
+
+  if (!detectLabels) {
+    // Unknown object — show supported list
+    const supported = Object.keys(OBJECT_MAP).join('، ');
+    alert(`"${targetLabel}" לא נמצא ברשימת החפצים הנתמכים.\n\nחפצים נתמכים:\n${supported}`);
+    return;
+  }
+
+  $('detect-hint').textContent = `מחפש: ${targetLabel}…\nכוון את המצלמה לחפץ`;
+  $('detect-result').style.display = 'none';
+  $('detect-overlay').classList.add('active');
+  detectCapturing = false;
+
+  // Show loading state while model loads
+  $('detect-hint').textContent = '⏳ טוען מודל זיהוי…';
+
+  const video = $('detect-video');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}}
+    });
+    detectStream = stream;
+    video.srcObject = stream;
+    video.onloadedmetadata = async () => {
+      try { await video.play(); } catch(e) {}
+      const model = await loadCoco();
+      if (!model) {
+        closeDetect();
+        alert('לא ניתן לטעון מודל זיהוי חפצים. ודא שיש חיבור אינטרנט.');
+        return;
+      }
+      $('detect-hint').textContent = `מחפש: ${detectTarget}\nכוון את המצלמה לחפץ`;
+      startDetectLoop(video, model);
+    };
+  } catch(err) {
+    closeDetect();
+    alert('לא ניתן לגשת למצלמה.\n' + err.message);
+  }
+}
+
+function startDetectLoop(video, model){
+  if (detectCapturing) return;
+  detectCapturing = true;
+
+  async function tick(){
+    if (!detectStream || !$('detect-overlay').classList.contains('active')) return;
+    if (video.readyState >= video.HAVE_ENOUGH_DATA && video.videoWidth > 0) {
+      try {
+        const predictions = await model.detect(video);
+        const found = predictions.find(p =>
+          detectLabels.some(lbl => p.class.toLowerCase().includes(lbl)) && p.score > 0.45
+        );
+        if (found) {
+          const rd = $('detect-result');
+          rd.textContent = `✅ זוהה: ${detectTarget}!`;
+          rd.style.display = 'block';
+          setTimeout(() => {
+            const cb = detectCallback;
             closeDetect();
             cb(detectTarget);
-          },700);
+          }, 600);
           return;
         }
-      }catch(e){console.warn('vision err',e);}
+      } catch(e) {}
     }
-    if($('detect-overlay').classList.contains('active')){
-      setTimeout(captureAndAnalyze,2500);
+    if ($('detect-overlay').classList.contains('active')) {
+      setTimeout(tick, 400);
     }
   }
-  setTimeout(captureAndAnalyze,1000);
+  setTimeout(tick, 300);
 }
 
 function closeDetect(){
-  detectCapturing=false;
-  if(detectStream){detectStream.getTracks().forEach(t=>t.stop());detectStream=null;}
-  detectCallback=null;detectTarget=null;
+  detectCapturing = false;
+  if (detectStream) { detectStream.getTracks().forEach(t => t.stop()); detectStream = null; }
+  detectCallback = null; detectTarget = null; detectLabels = null;
   $('detect-overlay').classList.remove('active');
-  $('detect-video').srcObject=null;
+  $('detect-video').srcObject = null;
 }
-$('detect-close').onclick=()=>closeDetect();
+$('detect-close').onclick = () => closeDetect();
 
 // ══════════════════════════════════════════════════════════
 // APP STATE
