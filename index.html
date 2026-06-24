@@ -309,13 +309,16 @@ function histSimilarity(h1, h2) {
 }
 
 function isMatch(fp1, fp2) {
-  // pHash: max 12/63 bits different (threshold tightened from naive pixel compare)
   const hd = hammingDist(fp1.phash, fp2.phash);
-  // Color histogram: Bhattacharyya > 0.82
   const hs = histSimilarity(fp1.hist, fp2.hist);
-  // Brightness: within 15%
   const bd = Math.abs(fp1.avgBright - fp2.avgBright);
-  return hd <= 14 && hs > 0.80 && bd < 0.18;
+  // Loosened: pHash ≤20 bits, histogram ≥0.70, brightness diff <0.25
+  // Two out of three must pass (handles lighting/angle variation)
+  const pHashOk = hd <= 20;
+  const colorOk = hs > 0.70;
+  const brightOk = bd < 0.25;
+  const passing = (pHashOk?1:0) + (colorOk?1:0) + (brightOk?1:0);
+  return passing >= 2;
 }
 
 // ══ object match ════════════════════════════════════════════════════
@@ -351,7 +354,8 @@ $('om-shutter').onclick=()=>{
       // Show debug info to help user understand why it failed
       const hd=hammingDist(omTargetFp.phash,fp.phash);
       const hs=histSimilarity(omTargetFp.hist,fp.hist);
-      showOmSt(`❌ לא מזוהה (${hd} bits, צבע ${(hs*100).toFixed(0)}%) — נסה שוב`,'#E84855');
+      const score=Math.round(((pHashOk?33:0)+(colorOk?33:0)+(brightOk?34:0)));
+      showOmSt(`❌ דמיון ${score}% — נסה שוב (זווית/תאורה שונה?)`,'#E84855');
       setTimeout(()=>$('om-status').style.display='none',2500);
     }
   });
@@ -565,7 +569,14 @@ function buildDismiss(){
     return pw;
   }
   if(dismissMode==='password')content.append(pwMode('pi',v=>v===step.password,()=>{dismissMode=null;render();}));
-  if(dismissMode==='master')content.append(pwMode('mi',v=>settings.masterPassword&&v===settings.masterPassword,()=>{dismissMode=null;render();}));
+  if(dismissMode==='master')content.append(pwMode('mi',v=>{
+    if(!settings.masterPassword||v!==settings.masterPassword)return false;
+    // master password: kill entire chain, go home
+    stopSound();stopVib();closeScanner();closeObjMatch();clearInterval(timerIv);
+    if(activeAlarm&&activeAlarm.repeat==='once'){alarms=alarms.map(a=>a.id===activeAlarm.id?{...a,enabled:false}:a);saveAlarms();}
+    activeAlarm=null;activeChainStep=null;timerNextStep=null;timerEndsAt=null;screen='home';dismissMode=null;
+    setTimeout(()=>render(),0);return true;
+  },()=>{dismissMode=null;render();}));
   wrap.append(content);return wrap;
 }
 
@@ -661,11 +672,33 @@ function buildAlarmsTab(){
     );
     card.append(topRow);
 
-    // label + badges
+    // label + time-to-alarm + badges
     const meta=div({style:{marginTop:'6px'}});
-    meta.append(el('div',{style:{fontSize:'13px',color:C.muted,marginBottom:'4px'}},a.label||'שעון מעורר'));
+    meta.append(el('div',{style:{fontSize:'15px',fontWeight:600,color:C.text,marginBottom:'4px'}},a.label||'שעון מעורר'));
+
+    // ── Time until next trigger ───────────────────────────────────
+    const now2=new Date();
+    const [ah,am]=a.time.split(':').map(Number);
+    let nextMs=new Date(now2);nextMs.setHours(ah,am,0,0);
+    if(nextMs<=now2)nextMs.setDate(nextMs.getDate()+1);
+    const diffMin=Math.round((nextMs-now2)/60000);
+    const diffH=Math.floor(diffMin/60),diffM=diffMin%60;
+    const untilStr=diffH>0?`עוד ${diffH}ש׳ ${diffM}דק׳`:`עוד ${diffMin} דקות`;
+
+    // ── Total chain duration ──────────────────────────────────────
+    let chainInfo='';
+    if(a.chain&&a.chain.length){
+      const totalMin=(a.chain||[]).reduce((s,st)=>s+(st.minutes||0),0);
+      const lastStep=a.chain[a.chain.length-1];
+      const endH=Math.floor((am+totalMin)/60+ah)%24;
+      const endM=(am+totalMin)%60;
+      chainInfo=` · סיום ~${pad(endH)}:${pad(endM)} (${totalMin}דק׳ שרשרת)`;
+    }
+
+    meta.append(el('div',{style:{fontSize:'13px',color:C.amber,marginBottom:'5px'}},
+      a.enabled?(untilStr+chainInfo):'כבוי'));
+
     const bdgs=div({style:{display:'flex',gap:'5px',flexWrap:'wrap'}});
-    // repeat badge
     if(a.repeat==='daily')bdgs.append(bdg('🔁 כל יום'));
     else if(a.repeat==='once')bdgs.append(bdg('1️⃣ חד פעמי'));
     else if(a.repeat==='days'&&a.days?.length){bdgs.append(bdg('📅 '+a.days.map(d=>DAY_NAMES[d]).join(' ')));}
@@ -716,9 +749,9 @@ function buildAlarmModal(){
   tInp.value=localTime;tInp.oninput=()=>localTime=tInp.value;
   modal.append(tInp);
 
-  // ── Label ─────────────────────────────────────────────────────────
-  modal.append(lbl('תווית'));
-  const lInp=tinp('text',localLabel,'rtl','למשל: קום לעבודה');
+  // ── Name (shown on alarm card title) ─────────────────────────────
+  modal.append(lbl('שם השעון'));
+  const lInp=tinp('text',localLabel,'rtl','למשל: "שעון בוקר", "זמן להתקלח"');
   lInp.oninput=()=>localLabel=lInp.value;
   modal.append(lInp);
 
