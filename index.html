@@ -402,7 +402,7 @@ function buildDismiss(){
       }));
     }
     if(activeAlarm.objId){
-      const obj=objLib.find(o=>o.id===activeAlarm.objId);
+      const obj=objLib.find(o=>String(o.id)===String(activeAlarm.objId));
       if(obj){
         btns.append(dBtn('📸','צלם חפץ',()=>{
           dismissMode='object';render();
@@ -503,7 +503,7 @@ function buildAlarmsTab(){
 
   alarms.forEach(a=>{
     const rt=RINGTONES.find(r=>r.id===a.ringtone)||RINGTONES[0];
-    const obj=a.objId?objLib.find(o=>o.id===a.objId):null;
+    const obj=a.objId?objLib.find(o=>String(o.id)===String(a.objId)):null;
     const card=div({style:{background:C.card,borderRadius:'16px',padding:'16px 20px',marginBottom:'12px',display:'flex',justifyContent:'space-between',alignItems:'center',border:`1px solid ${C.border}`,opacity:a.enabled?1:.5}});
     const left=div({style:{flex:1}});
     const bdg=div({style:{display:'flex',gap:'6px',marginTop:'5px',flexWrap:'wrap'}});
@@ -600,7 +600,7 @@ function buildAddModal(){
     sel.append(el('option',{value:''},'— ללא —'));
     objLib.forEach(o=>sel.append(el('option',{value:o.id},o.name)));
     if(localObjId)sel.value=localObjId;
-    sel.onchange=()=>{localObjId=sel.value;};
+    sel.onchange=()=>{localObjId=sel.value;}; // sel.value is always string
     oSec.append(sel);
   }
   renderOSec();
@@ -611,7 +611,7 @@ function buildAddModal(){
       onclick:()=>{
         const t=tInp.value,l=lInp.value,p=pInp.value,b=localBarcode,o=localObjId;
         if(!t||(!p&&!b&&!o)){alert('חובה להגדיר לפחות שיטת כיבוי אחת');return;}
-        alarms.push({id:Date.now(),time:t,label:l||'שעון מעורר',password:p,barcode:b,objId:o,ringtone:localRt,enabled:true});
+        alarms.push({id:Date.now(),time:t,label:l||'שעון מעורר',password:p,barcode:b,objId:String(o||''),ringtone:localRt,enabled:true});
         saveAlarms();showAdd=false;closeScanner();render();
       }},'שמור שעון מעורר'),
     btn({style:{background:'none',border:`1px solid ${C.border}`,borderRadius:'14px',padding:'13px',fontSize:'15px',color:C.muted,cursor:'pointer',width:'100%'},
@@ -645,7 +645,7 @@ function buildLibraryTab(){
       if(!confirm(`למחוק "${obj.name}"?`))return;
       objLib=objLib.filter(o=>o.id!==obj.id);saveLib();
       // remove from alarms too
-      alarms=alarms.map(a=>a.objId===obj.id?{...a,objId:''}:a);saveAlarms();
+      alarms=alarms.map(a=>String(a.objId)===String(obj.id)?{...a,objId:''}:a);saveAlarms();
       render();
     }},'🗑');
     card.append(img,name,del);wrap.append(card);
