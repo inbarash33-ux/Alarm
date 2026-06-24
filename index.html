@@ -335,10 +335,10 @@ function checkAlarms(){
 }
 function triggerAlarm(a){
   activeAlarm=a;screen='dismiss';dismissMode=null;
-  startSound(a.ringtone||'classic');startVib();render();
+  (window._startAlarm||startSound)(a.ringtone||'classic');startVib();render();
 }
 function dismissAlarm(){
-  stopSound();stopVib();closeScanner();closeObjMatch();
+  (window._stopAlarm||stopSound)();stopVib();closeScanner();closeObjMatch();
   alarms=alarms.map(a=>a.id===activeAlarm.id?{...a,enabled:false}:a);
   saveAlarms();activeAlarm=null;screen='home';dismissMode=null;render();
 }
@@ -537,6 +537,15 @@ function buildAddModal(){
     }},rt.name,el('span',{style:{display:'block',fontSize:'11px',color:C.muted,marginTop:'2px',fontWeight:400}},rt.desc));
     chips.append(c);
   });
+  // add custom tones to chip list
+  (customTones||[]).forEach(t=>{
+    const rid='custom:'+t.id;
+    const c=btn({cls:'rt-chip',onclick:()=>{
+      localRt=rid;chips.querySelectorAll('.rt-chip').forEach(x=>x.classList.remove('sel'));c.classList.add('sel');
+      playCustomTone(t.dataUrl);
+    }},'🎵 '+t.name,el('span',{style:{display:'block',fontSize:'11px',color:C.muted,marginTop:'2px',fontWeight:400}},'מותאם אישית'));
+    chips.append(c);
+  });
   modal.append(chips);
 
   modal.append(div({style:{margin:'20px 0 4px',borderTop:`1px solid ${C.border}`,paddingTop:'16px'}},
@@ -627,53 +636,177 @@ function buildLibraryTab(){
 }
 
 function addObjectFlow(){
-  const name=prompt('שם החפץ (למשל: כוס קפה, ברז מקלחת):');
-  if(!name||!name.trim())return;
-  openPhoto(`📸 צלם את: ${name.trim()}\nמקם את החפץ במרכז המסך`,dataUrl=>{
-    objLib.push({id:Date.now(),name:name.trim(),dataUrl});
-    saveLib();render();
-  });
+  // prompt() is blocked in GitHub Pages PWA context — use inline modal
+  const overlay=div({style:{position:'fixed',inset:0,background:'rgba(0,0,0,.82)',display:'flex',
+    alignItems:'center',justifyContent:'center',zIndex:300,padding:'24px'}});
+  const box=div({style:{background:C.surface,borderRadius:'20px',padding:'24px 20px',
+    width:'100%',maxWidth:'360px',direction:'rtl'}});
+  box.append(
+    el('div',{style:{fontSize:'18px',fontWeight:700,marginBottom:'6px'}},'📸 הוסף חפץ לספרייה'),
+    el('div',{style:{fontSize:'13px',color:C.muted,marginBottom:'16px'}},
+      'תן שם לחפץ — תצטרך לצלמו כדי לכבות את השעון')
+  );
+  const nameInp=el('input',{type:'text',placeholder:'למשל: כוס קפה, ברז מקלחת...',dir:'rtl',
+    style:{width:'100%',background:C.card,border:`1px solid ${C.border}`,borderRadius:'12px',
+      padding:'13px 14px',fontSize:'16px',outline:'none',color:C.text,marginBottom:'14px'}});
+  const go=btn({style:{width:'100%',background:C.green,color:'#000',border:'none',
+    borderRadius:'12px',padding:'13px',fontSize:'16px',fontWeight:700,cursor:'pointer',marginBottom:'10px'},
+    onclick:()=>{
+      const name=nameInp.value.trim();
+      if(!name){nameInp.style.borderColor=C.red;return;}
+      document.body.removeChild(overlay);
+      openPhoto(`📸 צלם את: ${name}\nמקם את החפץ במרכז המסך`, dataUrl=>{
+        objLib.push({id:Date.now(), name, dataUrl});
+        saveLib();
+        switchTab('library');
+      });
+    }},'המשך לצילום →');
+  const cancel=btn({style:{width:'100%',background:'none',border:`1px solid ${C.border}`,
+    borderRadius:'12px',padding:'12px',fontSize:'15px',color:C.muted,cursor:'pointer'},
+    onclick:()=>document.body.removeChild(overlay)},'ביטול');
+  box.append(nameInp,go,cancel);
+  overlay.onclick=e=>{if(e.target===overlay)document.body.removeChild(overlay);};
+  overlay.append(box);
+  document.body.append(overlay);
+  setTimeout(()=>nameInp.focus(),80);
 }
 
 // ══ SETTINGS TAB ════════════════════════════════════════════════════
+// custom ringtones stored as { id, name, dataUrl (base64 audio) }
+let customTones = [];
+try { customTones = JSON.parse(localStorage.getItem('customTones')||'[]'); } catch{}
+const saveCustomTones = () => { try{localStorage.setItem('customTones',JSON.stringify(customTones))}catch{} };
+
+// audio element for custom tones
+let customAudio = null;
+function playCustomTone(dataUrl){
+  if(customAudio){ customAudio.pause(); customAudio=null; }
+  customAudio = new Audio(dataUrl);
+  customAudio.volume = 0.8;
+  customAudio.play().catch(()=>{});
+}
+function stopCustomAudio(){
+  if(customAudio){ customAudio.pause(); customAudio.currentTime=0; customAudio=null; }
+}
+
+// Override startSound / stopSound to support custom tones
+const _origStartSound = startSound;
+const _origStopSound  = stopSound;
+window._startAlarm = function(rid){
+  if(rid && rid.startsWith('custom:')){
+    const tid = rid.slice(7);
+    const tone = customTones.find(t=>String(t.id)===tid);
+    if(tone){
+      stopCustomAudio();
+      customAudio = new Audio(tone.dataUrl);
+      customAudio.loop = true;
+      customAudio.volume = 0.8;
+      customAudio.play().catch(()=>{});
+      return;
+    }
+  }
+  _origStartSound(rid);
+};
+window._stopAlarm = function(){
+  stopCustomAudio();
+  _origStopSound();
+};
+
 function buildSettingsTab(){
-  const wrap=div({style:{minHeight:'100vh',background:C.bg,direction:'rtl',padding:'28px 16px 0'}});
-  wrap.append(el('div',{style:{fontSize:'20px',fontWeight:700,marginBottom:'24px'}},'הגדרות'));
+  const wrap=div({style:{minHeight:'100vh',background:C.bg,direction:'rtl',padding:'28px 16px 16px'}});
+  wrap.append(el('div',{style:{fontSize:'20px',fontWeight:700,marginBottom:'20px'}},'הגדרות'));
 
-  // master password section
-  const mpCard=div({style:{background:C.card,border:`1px solid ${C.border}`,borderRadius:'16px',padding:'20px'}});
-  mpCard.append(el('div',{style:{fontSize:'16px',fontWeight:600,marginBottom:'4px'}},'🔓 סיסמת מאסטר'),
-    el('div',{style:{fontSize:'13px',color:C.muted,marginBottom:'14px'}},'סיסמה שמכבה כל שעון מעורר, בלי קשר להגדרות שלו'));
-
+  // ── master password ──────────────────────────────────────────────
+  const mpCard=div({style:{background:C.card,border:`1px solid ${C.border}`,borderRadius:'16px',padding:'20px',marginBottom:'16px'}});
+  mpCard.append(
+    el('div',{style:{fontSize:'16px',fontWeight:600,marginBottom:'4px'}},'🔓 סיסמת מאסטר'),
+    el('div',{style:{fontSize:'13px',color:C.muted,marginBottom:'14px'}},'מכבה כל שעון מעורר בחירום, ללא קשר להגדרות שלו')
+  );
   const mpInp=el('input',{type:'password',placeholder:'הזן סיסמת מאסטר...',dir:'ltr',
-    style:{width:'100%',background:C.surface,border:`1px solid ${C.border}`,borderRadius:'12px',padding:'12px 14px',fontSize:'16px',outline:'none',color:C.text,marginBottom:'10px'}});
+    style:{width:'100%',background:C.surface,border:`1px solid ${C.border}`,borderRadius:'12px',
+      padding:'12px 14px',fontSize:'16px',outline:'none',color:C.text,marginBottom:'10px'}});
   mpInp.value=settings.masterPassword||'';
-
   const mpStatus=el('div',{style:{fontSize:'13px',color:C.green,display:'none',marginBottom:'8px'}},'✅ נשמר!');
-
-  const mpSave=btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'12px',padding:'11px 24px',fontSize:'14px',fontWeight:700,cursor:'pointer'},
-    onclick:()=>{
-      settings.masterPassword=mpInp.value.trim();
-      saveSettings();
-      mpStatus.style.display='block';
-      setTimeout(()=>mpStatus.style.display='none',2000);
+  const mpSave=btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'12px',
+    padding:'11px 24px',fontSize:'14px',fontWeight:700,cursor:'pointer'},
+    onclick:()=>{settings.masterPassword=mpInp.value.trim();saveSettings();
+      mpStatus.style.display='block';setTimeout(()=>mpStatus.style.display='none',2000);
     }},'שמור');
-
-  const mpClear=btn({style:{background:'none',border:`1px solid ${C.border}`,borderRadius:'12px',padding:'11px 24px',fontSize:'14px',color:C.muted,cursor:'pointer',marginRight:'8px'},
-    onclick:()=>{
-      mpInp.value='';settings.masterPassword='';saveSettings();
+  const mpClear=btn({style:{background:'none',border:`1px solid ${C.border}`,borderRadius:'12px',
+    padding:'11px 24px',fontSize:'14px',color:C.muted,cursor:'pointer',marginRight:'8px'},
+    onclick:()=>{mpInp.value='';settings.masterPassword='';saveSettings();
       mpStatus.textContent='🗑 נמחקה';mpStatus.style.display='block';
       setTimeout(()=>{mpStatus.style.display='none';mpStatus.textContent='✅ נשמר!';},2000);
-    }},'מחק סיסמה');
-
+    }},'מחק');
   mpCard.append(mpInp,mpStatus,div({style:{display:'flex',gap:'8px'}},mpClear,mpSave));
   wrap.append(mpCard);
 
-  // info
-  wrap.append(div({style:{marginTop:'24px',background:C.card,border:`1px solid ${C.border}`,borderRadius:'16px',padding:'20px'}},
+  // ── custom ringtones ─────────────────────────────────────────────
+  const rtCard=div({style:{background:C.card,border:`1px solid ${C.border}`,borderRadius:'16px',padding:'20px',marginBottom:'16px'}});
+  rtCard.append(
+    el('div',{style:{fontSize:'16px',fontWeight:600,marginBottom:'4px'}},'🎵 רינגטונים מותאמים אישית'),
+    el('div',{style:{fontSize:'13px',color:C.muted,marginBottom:'14px'}},'העלה קבצי MP3/WAV/OGG — הם יופיעו כאפשרות בבחירת רינגטון')
+  );
+
+  const toneList=div({});
+  function renderToneList(){
+    toneList.innerHTML='';
+    if(!customTones.length){
+      toneList.append(el('div',{style:{fontSize:'13px',color:C.muted,marginBottom:'12px'}},'אין רינגטונים מותאמים עדיין'));
+    }
+    customTones.forEach(t=>{
+      const row=div({style:{display:'flex',alignItems:'center',gap:'10px',marginBottom:'8px',
+        background:C.surface,borderRadius:'10px',padding:'10px 12px'}});
+      const playBtn=btn({style:{background:C.amber,color:'#000',border:'none',borderRadius:'8px',
+        padding:'6px 12px',fontSize:'13px',fontWeight:700,cursor:'pointer'},
+        onclick:()=>playCustomTone(t.dataUrl)},'▶');
+      const stopBtn=btn({style:{background:C.dimmer,color:C.text,border:'none',borderRadius:'8px',
+        padding:'6px 12px',fontSize:'13px',cursor:'pointer'},
+        onclick:stopCustomAudio},'■');
+      const namEl=el('span',{style:{flex:1,fontSize:'14px',fontWeight:500,overflow:'hidden',
+        textOverflow:'ellipsis',whiteSpace:'nowrap'}},t.name);
+      const delBtn=btn({style:{background:'none',border:'none',fontSize:'16px',cursor:'pointer',opacity:.5},
+        onclick:()=>{
+          customTones=customTones.filter(x=>x.id!==t.id);saveCustomTones();
+          // remove from alarms that used it
+          alarms=alarms.map(a=>a.ringtone===`custom:${t.id}`?{...a,ringtone:'classic'}:a);saveAlarms();
+          renderToneList();
+        }},'🗑');
+      row.append(playBtn,stopBtn,namEl,delBtn);
+      toneList.append(row);
+    });
+  }
+  renderToneList();
+  rtCard.append(toneList);
+
+  // upload button
+  const fileInp=el('input',{type:'file',accept:'audio/*,audio/mp3,audio/wav,audio/ogg',style:{display:'none'}});
+  fileInp.onchange=()=>{
+    const file=fileInp.files[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const dataUrl=e.target.result;
+      const name=file.name.replace(/\.[^.]+$/,'');
+      customTones.push({id:Date.now(),name,dataUrl});
+      saveCustomTones();
+      renderToneList();
+    };
+    reader.readAsDataURL(file);
+    fileInp.value='';
+  };
+  const uploadBtn=btn({style:{width:'100%',background:C.surface,border:`1.5px dashed ${C.amberDim}`,
+    borderRadius:'12px',padding:'13px',color:C.amber,fontSize:'15px',fontWeight:600,cursor:'pointer',
+    textAlign:'center',marginTop:'4px'},
+    onclick:()=>fileInp.click()},'+ העלה קובץ אודיו');
+  rtCard.append(fileInp,uploadBtn);
+  wrap.append(rtCard);
+
+  // ── info ─────────────────────────────────────────────────────────
+  wrap.append(div({style:{background:C.card,border:`1px solid ${C.border}`,borderRadius:'16px',padding:'20px'}},
     el('div',{style:{fontSize:'16px',fontWeight:600,marginBottom:'8px'}},'ℹ️ אודות'),
-    el('div',{style:{fontSize:'13px',color:C.muted,lineHeight:1.7}},
-      '• שעוני מעורר נשמרים באחסון הדפדפן\n• ספריית החפצים שומרת תמונות ומשתמשת בהשוואה ויזואלית לזיהוי\n• סיסמת מאסטר מכבה כל שעון בחירום'
+    el('div',{style:{fontSize:'13px',color:C.muted,lineHeight:1.8}},
+      '• שעוני מעורר ותמונות נשמרים בדפדפן',el('br',{}),'• ספריית חפצים — מצלם חפץ, בזמן כיבוי צולם שוב ומשווה',el('br',{}),'• סיסמת מאסטר מכבה כל שעון בחירום'
     )
   ));
 
