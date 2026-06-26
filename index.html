@@ -259,243 +259,219 @@ $('ph-shutter').onclick=()=>{
 
 // ══ image fingerprint (pHash + color histogram) ═════════════════════
 // Returns a fingerprint object from a dataUrl
-// ══ Fingerprint engine (ROI-aware) ════════════════════════════════
-// Computes color histogram + avg color for a specific pixel region.
-// When a ROI is defined, only that crop is compared.
+// ══ OpenCV.js ORB feature matching ═════════════════════════════════
+// Loads OpenCV lazily on first use (~8MB, cached after that)
 
-function extractRegionFeatures(ctx, x, y, w, h) {
-  w = Math.max(1, Math.round(w));
-  h = Math.max(1, Math.round(h));
-  const data = ctx.getImageData(x, y, w, h).data;
-  const n = w * h;
-  const BINS = 32;
-  const hist = new Float32Array(BINS * 3).fill(0);
-  let rS=0, gS=0, bS=0;
-  for (let i = 0; i < n; i++) {
-    const r=data[i*4], g=data[i*4+1], b=data[i*4+2];
-    hist[Math.floor(r/256*BINS)]++;
-    hist[BINS   + Math.floor(g/256*BINS)]++;
-    hist[BINS*2 + Math.floor(b/256*BINS)]++;
-    rS+=r; gS+=g; bS+=b;
-  }
-  for (let i=0; i<hist.length; i++) hist[i] /= n;
-  return { hist, avgR:rS/n/255, avgG:gS/n/255, avgB:bS/n/255 };
-}
+let cvReady = false, cvLoading = false, cvReadyCbs = [];
 
-function bhatt(h1, h2) { let s=0; for(let i=0;i<h1.length;i++) s+=Math.sqrt(h1[i]*h2[i]); return s; }
-function colorDist(z1, z2) { return Math.sqrt((z1.avgR-z2.avgR)**2+(z1.avgG-z2.avgG)**2+(z1.avgB-z2.avgB)**2); }
-
-// Compute fingerprint from a dataUrl.
-// roi = {x,y,w,h} as fractions 0..1 of image size (or null = whole image split into 5 zones)
-function computeFingerprint(dataUrl, roi, cb) {
-  const img = new Image();
-  img.onload = () => {
-    const SZ = 256;
-    const cv = document.createElement('canvas'); cv.width=SZ; cv.height=SZ;
-    const ctx = cv.getContext('2d');
-    ctx.drawImage(img, 0, 0, SZ, SZ);
-
-    let zones;
-    if (roi) {
-      // Single ROI zone — crop it, then split into 3x3 grid for more granularity
-      const rx=Math.round(roi.x*SZ), ry=Math.round(roi.y*SZ);
-      const rw=Math.max(10,Math.round(roi.w*SZ)), rh=Math.max(10,Math.round(roi.h*SZ));
-      const cols=3, rows=3;
-      zones = [];
-      const weights = [];
-      for (let r=0; r<rows; r++) for (let c=0; c<cols; c++) {
-        const zx=rx+Math.round(c*rw/cols), zy=ry+Math.round(r*rh/rows);
-        const zw=Math.round(rw/cols), zh=Math.round(rh/rows);
-        zones.push(extractRegionFeatures(ctx, zx, zy, zw, zh));
-        // Center cell of grid gets more weight
-        weights.push((r===1&&c===1) ? 0.3 : (r===1||c===1) ? 0.1 : 0.05);
+function ensureCV(cb) {
+  if (cvReady) { cb(); return; }
+  cvReadyCbs.push(cb);
+  if (cvLoading) return;
+  cvLoading = true;
+  showOmSt('⏳ טוען מנוע זיהוי (~8MB)...', '#F5A623');
+  const s = document.createElement('script');
+  s.src = 'https://docs.opencv.org/4.8.0/opencv.js';
+  s.async = true;
+  s.onload = () => {
+    // cv may not be ready immediately
+    function waitCV() {
+      if (typeof cv !== 'undefined' && cv.Mat) {
+        cvReady = true;
+        cvReadyCbs.forEach(f => f());
+        cvReadyCbs = [];
+      } else {
+        setTimeout(waitCV, 100);
       }
-      // normalize weights
-      const wsum=weights.reduce((a,b)=>a+b,0);
-      zones._weights = weights.map(w=>w/wsum);
-    } else {
-      // No ROI: 5-zone (center + quadrants)
-      const h2=SZ/2, w2=SZ/2;
-      zones = [
-        extractRegionFeatures(ctx, w2/2, h2/2, w2, h2),
-        extractRegionFeatures(ctx, 0,  0,  w2, h2),
-        extractRegionFeatures(ctx, w2, 0,  w2, h2),
-        extractRegionFeatures(ctx, 0,  h2, w2, h2),
-        extractRegionFeatures(ctx, w2, h2, w2, h2),
-      ];
-      zones._weights = [0.35, 0.165, 0.165, 0.165, 0.165];
     }
-    cb({ zones, roi });
+    waitCV();
   };
+  s.onerror = () => alert('לא ניתן לטעון OpenCV — ודא חיבור אינטרנט');
+  document.head.appendChild(s);
+}
+
+// Convert dataUrl → cv.Mat (grayscale)
+function dataUrlToMat(dataUrl) {
+  const img = new Image();
   img.src = dataUrl;
+  const c = document.createElement('canvas');
+  c.width = img.width || 640; c.height = img.height || 480;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  const rgba = ctx.getImageData(0, 0, c.width, c.height);
+  const src = cv.matFromImageData(rgba);
+  const gray = new cv.Mat();
+  cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+  src.delete();
+  return gray;
 }
 
-function matchScore(fp1, fp2) {
-  if(!fp1||!fp2) return 0;
-  const w1 = fp1.zones._weights, w2 = fp2.zones._weights;
-  // Use fp1 weights (reference) — both should have same zone count if same roi mode
-  const n = Math.min(fp1.zones.length, fp2.zones.length);
-  let score = 0;
-  for (let i=0; i<n; i++) {
-    const z1=fp1.zones[i], z2=fp2.zones[i];
-    const hScore = bhatt(z1.hist, z2.hist);          // 0..1
-    const cScore = Math.max(0, 1-colorDist(z1,z2)/0.5); // 0..1, tighter color
-    score += (hScore*0.65 + cScore*0.35) * w1[i];
-  }
-  return score;
+// Crop mat to ROI fraction
+function cropMat(mat, roi) {
+  if (!roi) return mat.clone();
+  const x = Math.round(roi.x * mat.cols);
+  const y = Math.round(roi.y * mat.rows);
+  const w = Math.max(20, Math.round(roi.w * mat.cols));
+  const h = Math.max(20, Math.round(roi.h * mat.rows));
+  const rect = new cv.Rect(
+    Math.min(x, mat.cols - w),
+    Math.min(y, mat.rows - h),
+    Math.min(w, mat.cols),
+    Math.min(h, mat.rows)
+  );
+  return mat.roi(rect);
 }
 
-function isMatch(fp1, fp2) { return matchScore(fp1, fp2) > 0.78; }
+// Compute ORB descriptors from dataUrl + optional ROI
+function computeDescriptors(dataUrl, roi, cb) {
+  ensureCV(() => {
+    try {
+      // Load image synchronously via canvas
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        // Resize to max 640 to keep it fast
+        const MAX = 640;
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+        c.width = Math.round(img.width * scale);
+        c.height = Math.round(img.height * scale);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        const rgba = c.getContext('2d').getImageData(0, 0, c.width, c.height);
 
-// ══ ROI selector ════════════════════════════════════════════════════
-let roiDataUrl='', roiCb=null, roiRect=null, roiDragging=false, roiStart={x:0,y:0};
+        const src = cv.matFromImageData(rgba);
+        const gray = new cv.Mat();
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+        src.delete();
 
-function openROISelector(dataUrl, cb) {
-  roiDataUrl=dataUrl; roiCb=cb; roiRect=null;
-  $('roi-img').src=dataUrl;
-  $('roi-ov').style.display='flex';
+        // Crop to ROI if defined (scale roi coords too)
+        const scaledRoi = roi ? {
+          x: roi.x, y: roi.y, w: roi.w, h: roi.h
+        } : null;
+        const region = scaledRoi ? cropMat(gray, scaledRoi) : gray;
 
-  const canvas=$('roi-canvas');
-  const img=$('roi-img');
+        // ORB detector — 500 features
+        const orb = new cv.ORB(500);
+        const kp = new cv.KeyPointVector();
+        const desc = new cv.Mat();
+        const mask = new cv.Mat();
+        orb.detectAndCompute(region, mask, kp, desc);
 
-  function getImgBounds() {
-    // object-fit:contain means image may have letterbox
-    const cr=img.getBoundingClientRect();
-    const natR=img.naturalWidth/img.naturalHeight;
-    const boxR=cr.width/cr.height;
-    let iw,ih,ix,iy;
-    if(natR>boxR){iw=cr.width;ih=cr.width/natR;ix=0;iy=(cr.height-ih)/2;}
-    else{ih=cr.height;iw=cr.height*natR;iy=0;ix=(cr.width-iw)/2;}
-    return {ix,iy,iw,ih};
-  }
+        const nKp = kp.size();
+        gray.delete(); mask.delete();
+        if (scaledRoi) region.delete();
+        // Note: don't delete orb (causes issues in some cv.js builds)
 
-  function evPos(e) {
-    const r=canvas.getBoundingClientRect();
-    const t=e.touches?e.touches[0]:e;
-    return {x:t.clientX-r.left, y:t.clientY-r.top};
-  }
+        if (nKp < 5) {
+          kp.delete(); desc.delete();
+          cb(null, 'מעט מדי נקודות מאפיין — נסה תאורה טובה יותר');
+          return;
+        }
 
-  function draw() {
-    const {ix,iy,iw,ih}=getImgBounds();
-    canvas.width=canvas.offsetWidth; canvas.height=canvas.offsetHeight;
-    const ctx=canvas.getContext('2d');
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    if(roiRect){
-      const {x,y,w,h}=roiRect;
-      // dim outside
-      ctx.fillStyle='rgba(0,0,0,0.5)';
-      ctx.fillRect(ix,iy,iw,ih);
-      ctx.clearRect(x,y,w,h);
-      // border
-      ctx.strokeStyle='#F5A623';ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);
-      // corner handles
-      const hs=10;[[x,y],[x+w,y],[x,y+h],[x+w,y+h]].forEach(([hx,hy])=>{
-        ctx.fillStyle='#F5A623';ctx.fillRect(hx-hs/2,hy-hs/2,hs,hs);
-      });
-    } else {
-      // hint
-      ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fillRect(ix,iy,iw,ih);
-      ctx.fillStyle='rgba(255,255,255,0.7)';ctx.font='14px system-ui';ctx.textAlign='center';
-      ctx.fillText('גרור כדי לסמן אזור',canvas.width/2,canvas.height/2);
-    }
-  }
-
-  function onStart(e) {
-    e.preventDefault();
-    roiDragging=true; roiStart=evPos(e); roiRect=null; draw();
-  }
-  function onMove(e) {
-    e.preventDefault();
-    if(!roiDragging) return;
-    const p=evPos(e);
-    roiRect={x:Math.min(roiStart.x,p.x),y:Math.min(roiStart.y,p.y),
-              w:Math.abs(p.x-roiStart.x),h:Math.abs(p.y-roiStart.y)};
-    draw();
-  }
-  function onEnd(e) {
-    e.preventDefault();
-    roiDragging=false;
-    if(roiRect&&(roiRect.w<20||roiRect.h<20)){roiRect=null;}
-    draw();
-  }
-
-  canvas.addEventListener('mousedown',onStart);
-  canvas.addEventListener('mousemove',onMove);
-  canvas.addEventListener('mouseup',onEnd);
-  canvas.addEventListener('touchstart',onStart,{passive:false});
-  canvas.addEventListener('touchmove',onMove,{passive:false});
-  canvas.addEventListener('touchend',onEnd,{passive:false});
-
-  // Draw initially after image loads
-  img.onload=()=>{ setTimeout(draw,50); };
-  if(img.complete) setTimeout(draw,50);
-
-  $('roi-ok').onclick=()=>{
-    const {ix,iy,iw,ih}=getImgBounds();
-    const cw=canvas.offsetWidth, ch=canvas.offsetHeight;
-
-    // Convert canvas pixel ROI to fraction of actual image
-    let roi=null;
-    if(roiRect && roiRect.w>20 && roiRect.h>20){
-      roi={
-        x: Math.max(0,(roiRect.x-ix)/iw),
-        y: Math.max(0,(roiRect.y-iy)/ih),
-        w: Math.min(1,roiRect.w/iw),
-        h: Math.min(1,roiRect.h/ih),
+        cb({ kp, desc, nKp, roi: scaledRoi });
       };
+      img.src = dataUrl;
+    } catch(e) {
+      cb(null, 'שגיאה: ' + e.message);
     }
-    $('roi-ov').style.display='none';
-    canvas.replaceWith(canvas.cloneNode(false)); // remove listeners
-    roiCb(roiDataUrl, roi);
-  };
+  });
+}
 
-  $('roi-cancel').onclick=()=>{
-    $('roi-ov').style.display='none';
-    canvas.replaceWith(canvas.cloneNode(false));
-    roiCb=null;
-  };
+// Match two descriptor sets using BFMatcher + Lowe ratio test
+function matchDescriptors(feat1, feat2) {
+  if (!feat1 || !feat2) return 0;
+  if (feat1.desc.rows < 2 || feat2.desc.rows < 2) return 0;
+
+  try {
+    const bf = new cv.BFMatcher(cv.NORM_HAMMING, false);
+    const matches = new cv.DMatchVectorVector();
+    bf.knnMatch(feat1.desc, feat2.desc, matches, 2);
+
+    // Lowe ratio test: keep matches where best is clearly better than second
+    let good = 0;
+    const total = matches.size();
+    for (let i = 0; i < total; i++) {
+      const m = matches.get(i);
+      if (m.size() >= 2) {
+        const m0 = m.get(0), m1 = m.get(1);
+        if (m0.distance < 0.75 * m1.distance) good++;
+      }
+    }
+    matches.delete();
+    // Normalize by reference keypoint count
+    return good / Math.min(feat1.nKp, 150);
+  } catch(e) {
+    return 0;
+  }
 }
 
 // ══ object match ════════════════════════════════════════════════════
-let omStream=null,omCb=null,omTargetFp=null,omName='';
-async function openObjectMatch(obj,cb){
-  omName=obj.name;omCb=cb;
-  $('om-label').textContent=`📸 צלם את: ${obj.name}`;
-  $('om-status').style.display='none';$('om-ov').classList.add('on');
-  computeFingerprint(obj.dataUrl, obj.roi||null, fp => { omTargetFp = fp; });
-  const vid=$('om-vid');
-  try{
-    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
-    omStream=s;vid.srcObject=s;
-    vid.onloadedmetadata=async()=>{try{await vid.play()}catch(e){}};
-  }catch(e){closeObjMatch();alert('שגיאת מצלמה: '+e.message);}
+let omStream=null, omCb=null, omTargetFeat=null, omName='', omObjRoi=null;
+
+async function openObjectMatch(obj, cb) {
+  omName = obj.name; omCb = cb; omObjRoi = obj.roi || null;
+  $('om-label').textContent = `📸 צלם את: ${obj.name}`;
+  $('om-status').style.display = 'none';
+  $('om-ov').classList.add('on');
+  omTargetFeat = null;
+
+  // Pre-compute features from saved image
+  computeDescriptors(obj.dataUrl, obj.roi || null, (feat, err) => {
+    if (!feat) { showOmSt('⚠️ ' + err, '#F5A623'); return; }
+    omTargetFeat = feat;
+    showOmSt(`✅ מוכן — ${feat.nKp} נקודות מאפיין`, '#2EC069');
+    setTimeout(() => $('om-status').style.display = 'none', 1500);
+  });
+
+  const vid = $('om-vid');
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    omStream = s; vid.srcObject = s;
+    vid.onloadedmetadata = async () => { try { await vid.play(); } catch(e) {} };
+  } catch(e) { closeObjMatch(); alert('שגיאת מצלמה: ' + e.message); }
 }
 
-$('om-shutter').onclick=()=>{
-  if(!omTargetFp){showOmSt('⏳ טוען... נסה שוב','#F5A623');return;}
-  const vid=$('om-vid');
-  const MAX=640,scale=Math.min(1,MAX/vid.videoWidth);
-  const cv=document.createElement('canvas');
-  cv.width=Math.round(vid.videoWidth*scale);cv.height=Math.round(vid.videoHeight*scale);
-  cv.getContext('2d').drawImage(vid,0,0,cv.width,cv.height);
-  const dataUrl=cv.toDataURL('image/jpeg',.85);
+$('om-shutter').onclick = () => {
+  if (!omTargetFeat) { showOmSt('⏳ עדיין טוען — נסה שוב', '#F5A623'); return; }
 
-  // Use same ROI fractions on the new photo
-  computeFingerprint(dataUrl, omTargetFp.roi||null, fp => {
-    const score = matchScore(omTargetFp, fp);
-    if(score > 0.78){
-      showOmSt('✅ זוהה!','#2EC069');
-      setTimeout(()=>{const c=omCb;closeObjMatch();c();},700);
+  const vid = $('om-vid');
+  const MAX = 640, scale = Math.min(1, MAX / vid.videoWidth);
+  const c = document.createElement('canvas');
+  c.width = Math.round(vid.videoWidth * scale);
+  c.height = Math.round(vid.videoHeight * scale);
+  c.getContext('2d').drawImage(vid, 0, 0, c.width, c.height);
+  const dataUrl = c.toDataURL('image/jpeg', 0.85);
+
+  showOmSt('🔍 מנתח...', '#F5A623');
+
+  computeDescriptors(dataUrl, omObjRoi, (feat, err) => {
+    if (!feat) { showOmSt('⚠️ ' + err, '#F5A623'); return; }
+
+    const score = matchDescriptors(omTargetFeat, feat);
+    feat.kp.delete(); feat.desc.delete();
+
+    // score: ratio of good matches. >0.15 = strong match for ORB
+    const THRESHOLD = 0.12;
+    if (score >= THRESHOLD) {
+      showOmSt(`✅ זוהה! (${Math.round(score*100)}% התאמה)`, '#2EC069');
+      setTimeout(() => { const c = omCb; closeObjMatch(); c(); }, 700);
     } else {
-      const pct = Math.round(score*100);
-      const tip = pct>60?'קרוב! נסה אותה זווית':'נסה מאותו מרחק וזווית';
-      showOmSt(`❌ דמיון ${pct}% — ${tip}`,'#E84855');
-      setTimeout(()=>$('om-status').style.display='none',2500);
+      const pct = Math.round(score * 100);
+      const tip = pct > 6 ? 'קרוב! נסה אותה זווית ומרחק' : 'נסה לצלם מאותו מרחק וזווית';
+      showOmSt(`❌ ${pct}% התאמה — ${tip}`, '#E84855');
+      setTimeout(() => $('om-status').style.display = 'none', 2500);
     }
   });
 };
-function showOmSt(t,c){const s=$('om-status');s.textContent=t;s.style.color=c;s.style.display='block';}
-function closeObjMatch(){if(omStream){omStream.getTracks().forEach(t=>t.stop());omStream=null;}omCb=null;omTargetFp=null;$('om-ov').classList.remove('on');$('om-vid').srcObject=null;}
+
+function showOmSt(t, c) { const s=$('om-status'); s.textContent=t; s.style.color=c; s.style.display='block'; }
+function closeObjMatch() {
+  if(omStream){omStream.getTracks().forEach(t=>t.stop());omStream=null;}
+  omCb=null; omTargetFeat=null;
+  $('om-ov').classList.remove('on');
+  $('om-vid').srcObject=null;
+}
 $('om-close').onclick=closeObjMatch;
 
 // ══ alarm check ════════════════════════════════════════════════════
